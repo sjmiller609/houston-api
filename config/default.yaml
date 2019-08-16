@@ -109,6 +109,7 @@ repository: "https://helm.astronomer.io/"
 helm:
   baseDomain: ~
   registryAuthSecret: ~
+  registryPort: 5000
   releaseName: ~
   releaseNamespace: ~
   releaseVersion: ~
