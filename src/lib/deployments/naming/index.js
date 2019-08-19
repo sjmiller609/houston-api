@@ -28,7 +28,7 @@ export function generateNamespace(releaseName) {
 /*
  * Return an empty array if single namespace mode,
  * otherwise return the labels from the config file
- * @return {Map} The namespace name
+ * @return array of objects in the form {"key": ****, "value": ***}
  */
 export function generateDeploymentLabels() {
   const { deploymentNamespaceLabels, singleNamespace } = config.get("helm");
