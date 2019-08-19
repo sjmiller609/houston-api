@@ -109,7 +109,12 @@ repository: "https://helm.astronomer.io/"
 helm:
   baseDomain: ~
   registryAuthSecret: ~
+  registryPort: 5000
   releaseName: ~
+  # Map of labels to apply to an Airflow deployment's namespace.
+  # Does not apply in the case of single-namespace mode.
+  deploymentNamespaceLabels:
+    test-label: yep
   releaseNamespace: ~
   releaseVersion: ~
   singleNamespace: false

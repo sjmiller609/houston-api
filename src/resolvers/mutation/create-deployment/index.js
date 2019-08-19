@@ -2,6 +2,7 @@ import { deploymentFragment, workspaceFragment } from "./fragment";
 import {
   generateReleaseName,
   generateNamespace,
+  generateDeploymentLabels,
   generateEnvironmentSecretName
 } from "deployments/naming";
 import { createDatabaseForDeployment } from "deployments/database";
@@ -155,6 +156,7 @@ export default async function createDeployment(parent, args, ctx, info) {
       version: version
     },
     namespace: generateNamespace(releaseName),
+    namespaceLabels: generateDeploymentLabels(),
     rawConfig: JSON.stringify(generateHelmValues(deployment, values))
   });
 

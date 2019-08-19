@@ -23,7 +23,7 @@
     "apollo-server": "^2.2.2",
     "apollo-server-express": "^2.2.2",
     "bcryptjs": "^2.4.3",
-    "commander": "github:astronomerio/commander",
+    "commander": "github:astronomer/commander",
     "config": "^2.0.1",
     "cookie-parser": "^1.4.3",
     "dotenv": "^6.1.0",
