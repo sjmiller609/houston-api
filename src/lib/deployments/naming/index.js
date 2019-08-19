@@ -26,7 +26,7 @@ export function generateNamespace(releaseName) {
 }
 
 /*
- * Return an empty map if single namespace mode,
+ * Return an empty array if single namespace mode,
  * otherwise return the labels from the config file
  * @return {Map} The namespace name
  */
