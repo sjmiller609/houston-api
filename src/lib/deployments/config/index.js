@@ -97,8 +97,7 @@ export function limitRange() {
   const containerLimit = {
     type: "Container",
     default: min,
-    defaultRequest: min,
-    min
+    defaultRequest: min
   };
 
   return { limits: [podLimit, containerLimit] };
