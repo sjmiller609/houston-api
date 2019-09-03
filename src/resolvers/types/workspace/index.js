@@ -20,10 +20,6 @@ export function users(parent, args, ctx, info) {
   );
 }
 
-export function groups() {
-  return [];
-}
-
 export function invites(parent, args, ctx) {
   return ctx.db.query.inviteTokens({
     where: { workspace: { id: parent.id } }
@@ -81,7 +77,6 @@ export async function paywallEnabled(parent, args, ctx) {
 
 export default {
   users,
-  groups,
   invites,
   deploymentCount,
   workspaceCapabilities,

@@ -78,7 +78,7 @@ describe("usersQuery", () => {
     const username = casual.username;
     const args = { username };
     const res = usersQuery(args);
-    expect(res).toHaveProperty("where.username", username);
+    expect(res).toHaveProperty("where.username_contains", username);
   });
 
   test("query using email if supplied", () => {
@@ -86,14 +86,5 @@ describe("usersQuery", () => {
     const args = { email };
     const res = usersQuery(args);
     expect(res).toHaveProperty("where.emails_some.address", email);
-  });
-
-  test("query using current id if no args passed", () => {
-    const id = casual.uuid;
-    const user = { id };
-    const args = {};
-    const ctx = { user };
-    const res = usersQuery(args, ctx);
-    expect(res).toHaveProperty("where.id", id);
   });
 });

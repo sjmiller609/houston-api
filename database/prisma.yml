@@ -13,8 +13,3 @@ generate:
     output: ../src/lib/generated/schema/prisma.graphql
   - generator: javascript-client
     output: ../src/lib/generated/client
-
-# Update schema
-hooks:
-  post-deploy:
-    - graphql get-schema --project database

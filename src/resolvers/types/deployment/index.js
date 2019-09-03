@@ -99,12 +99,13 @@ export async function deployInfo(parent) {
     }
   ]);
 
-  const namespace = config.get("helm.releaseNamespace");
-  const releaseNamePlatform = config.get("helm.releaseName");
-  const registryPort = config.get("deployments.registryPort");
+  // Grab some configuration.
+  const { namespace, releaseName: platformReleaseName } = config.get("helm");
+  const registryPort = config.get("registry.port");
+
   // Build the registry request URL.
-  const uri = `http://${releaseNamePlatform}-registry.${namespace}:${registryPort}/v2/${repo}/tags/list`;
-  log.debug(`Using cluster URI to access registry: ${uri}`)
+  const uri = `http://${platformReleaseName}-registry.${namespace}:${registryPort}/v2/${repo}/tags/list`;
+  log.debug(`Requesting docker tags for ${parent.releaseName} at ${uri}`);
 
   try {
     // Request a list of tags.

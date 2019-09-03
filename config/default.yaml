@@ -46,6 +46,10 @@ commander:
   host: localhost
   port: 50051
 
+# Docker Registry configuration.
+registry:
+  port: 5000
+
 # Email configuration.
 email:
   # Enable sending emails.
@@ -151,13 +155,11 @@ auth:
       clientId: ~
       discoveryUrl: ~
 
-
   # Github via auth0
   github:
     enabled: false
 
-
-
+# Houston JWT configuration.
 jwt:
   # Development only: Passphrase to sign JWTs used to authenticate our GraphQL
   # API.
@@ -198,6 +200,7 @@ roles:
       - system.workspace.suspend
       - system.workspace.extendTrial
       - system.user.invite
+      - system.user.delete
       - system.invite.get
       - system.deployment.delete
       - system.users.list

@@ -89,17 +89,6 @@ type Invite {
   updatedAt: DateTime!
 }
 
-type Group {
-  id: ID!
-  uuid: Uuid @alias(field: "id")
-  label: String
-  active: Boolean
-  custom: Boolean
-  description: String
-  createdAt: DateTime!
-  updatedAt: DateTime!
-}
-
 # This only exists to support the legacy API.
 type UserProp {
   key: String
@@ -129,7 +118,6 @@ type Workspace {
   properties: JSON
   label: String
   users: [User]
-  groups: [Group]
   deploymentCount: Int
   stripeCustomerId: String
   roleBindings: [RoleBinding!]
@@ -205,8 +193,8 @@ type ServiceAccount {
   apiKey: String
   label: String
   category: String
-  entityType: String
-  entityUuid: Uuid
+  entityType: String!
+  entityUuid: Uuid!
   active: Boolean
   lastUsedAt: DateTime
   createdAt: DateTime!
@@ -252,11 +240,7 @@ type Query {
 
   self: AuthUser @auth
 
-  workspaces(
-    userUuid: Uuid
-    workspaceUuid: Uuid
-    label: String
-  ): [Workspace] @auth
+  workspaces: [Workspace] @auth
 
   deploymentConfig(
     workspaceUuid: Uuid
@@ -297,7 +281,9 @@ type Query {
     email: String
   ): [User] @auth(permissions: ["system.users.list"])
 
-  invites: [Invite] @auth(permissions:["system.users.list"])
+  invites(
+    email: String
+  ): [Invite] @auth(permissions:["system.users.list"])
 
   logs(
     deploymentUuid: Uuid!
@@ -388,6 +374,10 @@ type Mutation {
     userId: Uuid,
     payload: JSON!
   ): User @auth
+
+  removeUser(
+    userUuid: Uuid!
+  ): User @auth(permissions: ["system.user.delete"])
 
   createWorkspace(
     label: String!

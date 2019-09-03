@@ -130,3 +130,9 @@ export class DuplicateEmailError extends ApolloError {
     super("Email address in use", "DUPLICATE_EMAIL");
   }
 }
+
+export class NoSystemAdminError extends ApolloError {
+  message =
+    this.message ||
+    "There are no other system administrators. Please assign another before removing yourself.";
+}

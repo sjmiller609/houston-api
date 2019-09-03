@@ -1,4 +1,4 @@
-import { users, groups, invites, deploymentCount } from "./index";
+import { users, invites, deploymentCount } from "./index";
 import casual from "casual";
 
 describe("Workspace", () => {
@@ -9,10 +9,6 @@ describe("Workspace", () => {
     };
     users(parent, {}, { db });
     expect(db.query.users.mock.calls).toHaveLength(1);
-  });
-
-  test("groups returns an empty array", () => {
-    expect(groups()).toEqual([]);
   });
 
   test("invites queries invites with parent workspace id", () => {

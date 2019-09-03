@@ -1,5 +1,9 @@
 import { checkPermission } from "rbac";
+import serviceAccountFragment from "rbac/service-account-fragment";
+import { addFragmentToInfo } from "graphql-binding";
 import { pick } from "lodash";
+import { UserInputError } from "apollo-server";
+import { ENTITY_DEPLOYMENT, ENTITY_WORKSPACE } from "constants";
 
 /*
  * Update a Service Account.
@@ -26,9 +30,18 @@ export default async function updateServiceAccount(parent, args, ctx, info) {
   // For now, we just pluck out any props that are not in this list.
   const data = pick(args.payload, ["category", "label"]);
   const where = { id: args.serviceAccountUuid };
+  const role = args.payload.role;
 
   // Get role bindings
-  if (data.role) {
+  if (role) {
+    if (
+      (role.startsWith(ENTITY_WORKSPACE) &&
+        upperEntityType != ENTITY_WORKSPACE) ||
+      (role.startsWith(ENTITY_DEPLOYMENT) &&
+        upperEntityType != ENTITY_DEPLOYMENT)
+    ) {
+      throw new UserInputError("Entity and role types don't match");
+    }
     const roleBindings = await ctx.db.query.roleBindings(
       { where: { serviceAccount: where } },
       "{ id }"
@@ -38,10 +51,13 @@ export default async function updateServiceAccount(parent, args, ctx, info) {
     if (roleBindings.length > 0) {
       ctx.db.mutation.updateRoleBinding({
         where: { id: roleBindings[0].id },
-        data: { role: data.role }
+        data: { role: role }
       });
     }
   }
 
-  return ctx.db.mutation.updateServiceAccount({ where, data }, info);
+  return ctx.db.mutation.updateServiceAccount(
+    { where, data },
+    addFragmentToInfo(info, serviceAccountFragment)
+  );
 }

@@ -6,18 +6,7 @@ import { PermissionError } from "errors";
 import { prisma } from "generated/client";
 import { filter, find, flatten, includes, map, size } from "lodash";
 import config from "config";
-import {
-  ENTITY_DEPLOYMENT,
-  ENTITY_WORKSPACE,
-  DEPLOYMENT_EDITOR,
-  WORKSPACE_EDITOR
-} from "constants";
-
-// Mapping of entityTypes to role.
-export const serviceAccountRoleMappings = {
-  [ENTITY_DEPLOYMENT]: DEPLOYMENT_EDITOR,
-  [ENTITY_WORKSPACE]: WORKSPACE_EDITOR
-};
+import { ENTITY_DEPLOYMENT, ENTITY_WORKSPACE } from "constants";
 
 /*
  * Check if the user has the given permission for the entity.

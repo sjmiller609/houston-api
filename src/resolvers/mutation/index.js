@@ -14,6 +14,7 @@ import deploymentAlertsUpdate from "./deployment-alerts-update";
 import extendWorkspaceTrial from "./extend-workspace-trial";
 import forgotPassword from "./forgot-password";
 import inviteUser from "./invite-user";
+import removeUser from "./remove-user";
 import resendConfirmation from "./resend-confirmation";
 import resetPassword from "./reset-password";
 import suspendWorkspace from "./suspend-workspace";
@@ -44,6 +45,7 @@ export default {
   forgotPassword,
   extendWorkspaceTrial,
   inviteUser,
+  removeUser,
   resendConfirmation,
   resetPassword,
   suspendWorkspace,

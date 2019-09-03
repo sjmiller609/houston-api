@@ -35,7 +35,7 @@
     "result":[
       {
         "metric":{
-          "container":"frozen-neutron-5201-flower",
+          "container":"flower",
           "pod":"frozen-neutron-5201-flower-85568fcb68-t86ff"
         },
         "value":[
@@ -45,7 +45,7 @@
       },
       {
         "metric":{
-          "container":"frozen-neutron-5201-pgbouncer",
+          "container":"pgbouncer",
           "pod":"frozen-neutron-5201-pgbouncer-85c78b5f9d-kst4z"
         },
         "value":[
@@ -55,7 +55,7 @@
       },
       {
         "metric":{
-          "container":"frozen-neutron-5201-pgbouncer-metrics",
+          "container":"metrics-exporter",
           "pod":"frozen-neutron-5201-pgbouncer-85c78b5f9d-kst4z"
         },
         "value":[
@@ -65,7 +65,7 @@
       },
       {
         "metric":{
-          "container":"frozen-neutron-5201-redis",
+          "container":"redis",
           "pod":"frozen-neutron-5201-redis-0"
         },
         "value":[
@@ -75,7 +75,7 @@
       },
       {
         "metric":{
-          "container":"frozen-neutron-5201-scheduler",
+          "container":"scheduler",
           "pod":"frozen-neutron-5201-scheduler-844cbff678-wgc6r"
         },
         "value":[
@@ -85,7 +85,7 @@
       },
       {
         "metric":{
-          "container":"frozen-neutron-5201-scheduler-gc",
+          "container":"scheduler-gc",
           "pod":"frozen-neutron-5201-scheduler-844cbff678-wgc6r"
         },
         "value":[
@@ -95,7 +95,7 @@
       },
       {
         "metric":{
-          "container":"frozen-neutron-5201-statsd",
+          "container":"statsd",
           "pod":"frozen-neutron-5201-statsd-7b974b8fdb-6s8tx"
         },
         "value":[
@@ -105,7 +105,7 @@
       },
       {
         "metric":{
-          "container":"frozen-neutron-5201-webserver",
+          "container":"webserver",
           "pod":"frozen-neutron-5201-webserver-7847cc9459-cj9q8"
         },
         "value":[
@@ -115,7 +115,7 @@
       },
       {
         "metric":{
-          "container":"frozen-neutron-5201-worker",
+          "container":"worker",
           "pod":"frozen-neutron-5201-worker-6f6cfbbfbc-wzdf5"
         },
         "value":[
@@ -20820,7 +20820,7 @@
           "cloud_google_com_gke_nodepool":"astronomer-dev-np-lybjumoigv",
           "component_instance":"6s8tx",
           "component_name":"frozen-neutron-5201 statsd",
-          "container_name":"frozen-neutron-5201-statsd",
+          "container_name":"statsd",
           "deployment":"frozen-neutron-5201",
           "failure_domain_beta_kubernetes_io_region":"us-east4",
           "failure_domain_beta_kubernetes_io_zone":"us-east4-a",
@@ -22290,7 +22290,7 @@
           "cloud_google_com_gke_nodepool":"astronomer-dev-np-lybjumoigv",
           "component_instance":"cj9q8",
           "component_name":"frozen-neutron-5201 webserver",
-          "container_name":"frozen-neutron-5201-webserver",
+          "container_name":"webserver",
           "deployment":"frozen-neutron-5201",
           "failure_domain_beta_kubernetes_io_region":"us-east4",
           "failure_domain_beta_kubernetes_io_zone":"us-east4-a",
@@ -23760,7 +23760,7 @@
           "cloud_google_com_gke_nodepool":"astronomer-dev-np-lybjumoigv",
           "component_instance":"kst4z",
           "component_name":"frozen-neutron-5201 pgbouncer",
-          "container_name":"frozen-neutron-5201-pgbouncer",
+          "container_name":"pgbouncer",
           "deployment":"frozen-neutron-5201",
           "failure_domain_beta_kubernetes_io_region":"us-east4",
           "failure_domain_beta_kubernetes_io_zone":"us-east4-a",
@@ -25230,7 +25230,7 @@
           "cloud_google_com_gke_nodepool":"astronomer-dev-np-lybjumoigv",
           "component_instance":"kst4z",
           "component_name":"frozen-neutron-5201 pgbouncer-metrics",
-          "container_name":"frozen-neutron-5201-pgbouncer-metrics",
+          "container_name":"metrics-exporter",
           "deployment":"frozen-neutron-5201",
           "failure_domain_beta_kubernetes_io_region":"us-east4",
           "failure_domain_beta_kubernetes_io_zone":"us-east4-a",
@@ -26700,7 +26700,7 @@
           "cloud_google_com_gke_nodepool":"astronomer-dev-np-lybjumoigv",
           "component_instance":"t86ff",
           "component_name":"frozen-neutron-5201 flower",
-          "container_name":"frozen-neutron-5201-flower",
+          "container_name":"flower",
           "deployment":"frozen-neutron-5201",
           "failure_domain_beta_kubernetes_io_region":"us-east4",
           "failure_domain_beta_kubernetes_io_zone":"us-east4-a",
@@ -28170,7 +28170,7 @@
           "cloud_google_com_gke_nodepool":"astronomer-dev-np-lybjumoigv",
           "component_instance":"wgc6r",
           "component_name":"frozen-neutron-5201 scheduler",
-          "container_name":"frozen-neutron-5201-scheduler",
+          "container_name":"scheduler",
           "deployment":"frozen-neutron-5201",
           "failure_domain_beta_kubernetes_io_region":"us-east4",
           "failure_domain_beta_kubernetes_io_zone":"us-east4-a",
@@ -29640,7 +29640,7 @@
           "cloud_google_com_gke_nodepool":"astronomer-dev-np-lybjumoigv",
           "component_instance":"wgc6r",
           "component_name":"frozen-neutron-5201 scheduler-gc",
-          "container_name":"frozen-neutron-5201-scheduler-gc",
+          "container_name":"scheduler-gc",
           "deployment":"frozen-neutron-5201",
           "failure_domain_beta_kubernetes_io_region":"us-east4",
           "failure_domain_beta_kubernetes_io_zone":"us-east4-a",
@@ -31110,7 +31110,7 @@
           "cloud_google_com_gke_nodepool":"astronomer-dev-np-lybjumoigv",
           "component_instance":"wzdf5",
           "component_name":"frozen-neutron-5201 worker",
-          "container_name":"frozen-neutron-5201-worker",
+          "container_name":"worker",
           "deployment":"frozen-neutron-5201",
           "failure_domain_beta_kubernetes_io_region":"us-east4",
           "failure_domain_beta_kubernetes_io_zone":"us-east4-a",
