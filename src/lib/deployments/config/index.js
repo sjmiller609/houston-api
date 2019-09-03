@@ -351,7 +351,7 @@ export function auToResources(au, size, includeUnits = true) {
  * @param {[]Object} An array of objects with key/value pairs.
  * @return {Object} The object with key/value pairs.
  */
-export function envArrayToObject(arr = []) {
+export function arrayOfKeyValueToObject(arr = []) {
   return fromPairs(arr.map(i => [i.key, i.value]));
 }
 

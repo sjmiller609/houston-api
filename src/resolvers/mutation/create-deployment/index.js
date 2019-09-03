@@ -7,7 +7,7 @@ import {
 } from "deployments/naming";
 import { createDatabaseForDeployment } from "deployments/database";
 import {
-  envArrayToObject,
+  arrayOfKeyValueToObject,
   generateHelmValues,
   mapPropertiesToDeployment,
   generateDefaultDeploymentConfig
@@ -171,7 +171,7 @@ export default async function createDeployment(parent, args, ctx, info) {
       namespace: generateNamespace(releaseName),
       secret: {
         name: generateEnvironmentSecretName(releaseName),
-        data: envArrayToObject(args.env)
+        data: arrayOfKeyValueToObject(args.env)
       }
     });
   }

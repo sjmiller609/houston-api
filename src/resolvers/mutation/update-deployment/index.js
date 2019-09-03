@@ -1,7 +1,7 @@
 import fragment from "./fragment";
 import validate from "deployments/validate";
 import {
-  envArrayToObject,
+  arrayOfKeyValueToObject,
   generateHelmValues,
   mapPropertiesToDeployment,
   mapCustomEnvironmentVariables
@@ -85,7 +85,7 @@ export default async function updateDeployment(parent, args, ctx, info) {
       namespace: generateNamespace(updatedDeployment.releaseName),
       secret: {
         name: generateEnvironmentSecretName(updatedDeployment.releaseName),
-        data: envArrayToObject(args.env)
+        data: arrayOfKeyValueToObject(args.env)
       }
     });
 
