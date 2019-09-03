@@ -35,9 +35,6 @@ export function generateDeploymentLabels() {
   const { singleNamespace } = config.get("helm");
   const { namespaceLabels } = config.get("deployments");
 
-  // When the labels are serialized, the format we want is an array
-  // of { key: *** , value: *** } objects.
-
   return singleNamespace
     ? []
     : objectToArrayOfKeyValue(namespaceLabels);
