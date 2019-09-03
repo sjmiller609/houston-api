@@ -31,13 +31,16 @@ export function generateNamespace(releaseName) {
  * @return array of objects in the form {"key": ****, "value": ***}
  */
 export function generateDeploymentLabels() {
-  const { deploymentNamespaceLabels, singleNamespace } = config.get("helm");
+  const { singleNamespace } = config.get("helm");
+  const { namespaceLabels } = config.get("deployments");
+
   // When the labels are serialized, the format we want is an array
   // of { key: *** , value: *** } objects.
   var labels = []
-  Object.keys(deploymentNamespaceLabels).forEach(function(key) {
-    labels.push({"key": key, "value": deploymentNamespaceLabels[key]});
+  Object.keys(namespaceLabels).forEach(function(key) {
+    labels.push({"key": key, "value": namespaceLabels[key]});
   });
+
   return singleNamespace
     ? []
     : labels;

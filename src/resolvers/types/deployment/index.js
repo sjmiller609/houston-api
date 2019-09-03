@@ -101,7 +101,7 @@ export async function deployInfo(parent) {
 
   const namespace = config.get("helm.releaseNamespace");
   const releaseNamePlatform = config.get("helm.releaseName");
-  const registryPort = config.get("helm.registryPort");
+  const registryPort = config.get("deployments.registryPort");
   // Build the registry request URL.
   const uri = `http://${releaseNamePlatform}-registry.${namespace}:${registryPort}/v2/${repo}/tags/list`;
   log.debug(`Using cluster URI to access registry: ${uri}`)

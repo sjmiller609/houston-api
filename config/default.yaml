@@ -109,9 +109,7 @@ repository: "https://helm.astronomer.io/"
 helm:
   baseDomain: ~
   registryAuthSecret: ~
-  registryPort: 5000
   releaseName: ~
-  deploymentNamespaceLabels: {}
   releaseNamespace: ~
   releaseVersion: ~
   singleNamespace: false
@@ -297,6 +295,11 @@ roles:
 # Airflow Deployment Configurations
 #
 deployments:
+
+  namespaceLabels: {}
+
+  registryPort: 5000
+
   # Log out final helm values whenever they are generated, before deployment.
   logHelmValues: false
 
