@@ -299,9 +299,8 @@ roles:
 #
 deployments:
 
+  # Labels specifed here are applied to Airflow deployment namespaces.
   namespaceLabels: {}
-
-  registryPort: 5000
 
   # Log out final helm values whenever they are generated, before deployment.
   logHelmValues: false
