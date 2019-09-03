@@ -360,7 +360,7 @@ export function envArrayToObject(arr = []) {
  * @param {Object} An array of objects with key/value pairs.
  * @return {[]Object} The object with key/value pairs.
  */
-export function envObjectToArray(obj = {}) {
+export function objectToArrayOfKeyValue(obj = {}) {
   return map(obj, (value, key) => ({ key, value }));
 }
 

@@ -1,6 +1,6 @@
 import {
   mapResources,
-  envObjectToArray,
+  objectToArrayOfKeyValue,
   envArrayToObject,
   generateHelmValues,
   limitRange,
@@ -209,7 +209,7 @@ describe("envObjectToArary", () => {
     };
 
     // Run the transformation.
-    const arr = envObjectToArray(obj);
+    const arr = objectToArrayOfKeyValue(obj);
 
     expect(arr.length).toBe(2);
     expect(arr[0]).toHaveProperty("key", "AIRFLOW_HOME");
@@ -220,7 +220,7 @@ describe("envObjectToArary", () => {
 
   test("correctly handles an undefined environment list", () => {
     // Run the transformation.
-    const arr = envObjectToArray();
+    const arr = objectToArrayOfKeyValue();
     expect(arr).toEqual([]);
   });
 });

@@ -2,6 +2,7 @@ import adjectives from "./adjectives";
 import nouns from "./nouns";
 import config from "config";
 import Haikunator from "haikunator";
+import { objectToArrayOfKeyValue } from 'deployments/config'
 
 /*
  * Generate a release name using the adjectives and nouns in this package.
@@ -36,14 +37,10 @@ export function generateDeploymentLabels() {
 
   // When the labels are serialized, the format we want is an array
   // of { key: *** , value: *** } objects.
-  var labels = []
-  Object.keys(namespaceLabels).forEach(function(key) {
-    labels.push({"key": key, "value": namespaceLabels[key]});
-  });
 
   return singleNamespace
     ? []
-    : labels;
+    : objectToArrayOfKeyValue(namespaceLabels);
 }
 
 /*

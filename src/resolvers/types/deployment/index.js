@@ -4,7 +4,7 @@ import {
   generateEnvironmentSecretName
 } from "deployments/naming";
 import {
-  envObjectToArray,
+  objectToArrayOfKeyValue,
   mapDeploymentToProperties,
   findLatestTag,
   generateNextTag
@@ -61,7 +61,7 @@ export async function env(parent, args, ctx) {
   });
 
   // Transform the returned object into an array.
-  return envObjectToArray(get(envs, "secret.data"));
+  return objectToArrayOfKeyValue(get(envs, "secret.data"));
 }
 
 /*
