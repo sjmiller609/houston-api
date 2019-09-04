@@ -100,7 +100,10 @@ export async function deployInfo(parent) {
   ]);
 
   // Grab some configuration.
-  const { releaseNamespace: namespace, releaseName: platformReleaseName } = config.get("helm");
+  const {
+    releaseNamespace: namespace,
+    releaseName: platformReleaseName
+  } = config.get("helm");
   const registryPort = config.get("registry.port");
 
   // Build the registry request URL.
