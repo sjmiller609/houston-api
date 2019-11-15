@@ -21,6 +21,9 @@ describe("validateExistence", () => {
     await expect(validateExistence(workspaceId, label)).rejects.toThrow(
       new DuplicateDeploymentLabelError(label)
     );
+    expect(exports.prisma.deployments).toBeCalledWith({
+      where: { deletedAt: null, label, workspace: { id: workspaceId } }
+    });
   });
 
   test("does not throw error if updating current deployment", async () => {
@@ -41,6 +44,9 @@ describe("validateExistence", () => {
     await expect(
       validateExistence(workspaceId, label, deploymentId)
     ).resolves.not.toThrow();
+    expect(exports.prisma.deployments).toBeCalledWith({
+      where: { deletedAt: null, label, workspace: { id: workspaceId } }
+    });
   });
 
   test("throws error if different deployment in workspace has label", async () => {
@@ -61,6 +67,9 @@ describe("validateExistence", () => {
     await expect(
       validateExistence(workspaceId, label, deploymentId)
     ).rejects.toThrow(new DuplicateDeploymentLabelError(label));
+    expect(exports.prisma.deployments).toBeCalledWith({
+      where: { deletedAt: null, label, workspace: { id: workspaceId } }
+    });
   });
 
   test("does not throw an error if no deployment found", async () => {
@@ -81,5 +90,8 @@ describe("validateExistence", () => {
     await expect(
       validateExistence(workspaceId, label, deploymentId)
     ).resolves.not.toThrow();
+    expect(exports.prisma.deployments).toBeCalledWith({
+      where: { deletedAt: null, label, workspace: { id: workspaceId } }
+    });
   });
 });

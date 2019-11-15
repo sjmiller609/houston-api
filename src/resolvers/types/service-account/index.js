@@ -1,5 +1,5 @@
-import { serviceAccountRoleMappings } from "rbac";
-import { get, invert } from "lodash";
+import { get } from "lodash";
+import { ENTITY_DEPLOYMENT, ENTITY_WORKSPACE } from "constants";
 
 export function entityUuid(parent) {
   return (
@@ -9,8 +9,9 @@ export function entityUuid(parent) {
 }
 
 export function entityType(parent) {
-  const role = get(parent, "roleBinding.role");
-  return invert(serviceAccountRoleMappings)[role];
+  return get(parent, "roleBinding.workspace.id")
+    ? ENTITY_WORKSPACE
+    : ENTITY_DEPLOYMENT;
 }
 
 export default { entityUuid, entityType };

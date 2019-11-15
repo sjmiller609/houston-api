@@ -11,7 +11,8 @@ import casual from "casual";
 import {
   USER_STATUS_PENDING,
   USER_STATUS_ACTIVE,
-  WORKSPACE_EDITOR
+  WORKSPACE_EDITOR,
+  WORKSPACE_VIEWER
 } from "constants";
 
 jest.mock("emails");
@@ -93,19 +94,28 @@ describe("userExports.createUser", () => {
   describe("when given a valid inviteToken", () => {
     beforeEach(() => {
       jest
-        .spyOn(prismaExports.prisma, "deleteInviteToken")
+        .spyOn(prismaExports.prisma, "deleteManyInviteTokens")
         .mockReturnValue(true);
     });
     test("creates an active user", async () => {
       const invite = casual.uuid;
+      const invite2 = casual.uuid;
       const workspace = casual.uuid;
+      const workspace2 = casual.uuid;
       const mockValidateInvite = jest
         .spyOn(userExports, "validateInviteToken")
-        .mockImplementation(() => ({
-          id: invite,
-          workspace: { id: workspace },
-          role: WORKSPACE_EDITOR
-        }));
+        .mockImplementation(() => [
+          {
+            id: invite,
+            workspace: { id: workspace },
+            role: WORKSPACE_EDITOR
+          },
+          {
+            id: invite2,
+            workspace: { id: workspace2 },
+            role: WORKSPACE_VIEWER
+          }
+        ]);
 
       const opts = {
         user: casual.username,
@@ -115,16 +125,23 @@ describe("userExports.createUser", () => {
 
       expect(await userExports.createUser(opts)).toBe(1);
       expect(sendEmail).not.toHaveBeenCalled();
-      expect(prismaExports.prisma.deleteInviteToken).toHaveBeenCalled();
+      expect(prismaExports.prisma.deleteManyInviteTokens).toHaveBeenCalledWith({
+        id_in: [invite, invite2]
+      });
 
       const createData = prismaCreateUser.mock.calls[0][0];
       expect(createData).toHaveProperty("status", USER_STATUS_ACTIVE);
       expect(createData).toHaveProperty("emails.create.verified", true);
       expect(createData).toHaveProperty("roleBindings.create");
       const roleBindings = createData.roleBindings.create;
-      expect(roleBindings).toHaveLength(1);
+      expect(roleBindings).toHaveLength(2);
       expect(roleBindings[0]).toHaveProperty("workspace.connect.id", workspace);
       expect(roleBindings[0]).toHaveProperty("role", WORKSPACE_EDITOR);
+      expect(roleBindings[1]).toHaveProperty(
+        "workspace.connect.id",
+        workspace2
+      );
+      expect(roleBindings[1]).toHaveProperty("role", WORKSPACE_VIEWER);
 
       mockValidateInvite.mockRestore();
     });
@@ -133,16 +150,19 @@ describe("userExports.createUser", () => {
 
 describe("userExports.validateInviteToken", () => {
   // Set by each test case
-  let inviteRecord;
+  let inviteRecords;
+  jest.spyOn(prismaExports.prisma, "inviteToken").mockReturnValue({
+    email: () => (inviteRecords[0] ? inviteRecords[0].email : null)
+  });
   jest
-    .spyOn(prismaExports.prisma, "inviteToken")
-    .mockReturnValue({ $fragment: () => inviteRecord });
+    .spyOn(prismaExports.prisma, "inviteTokens")
+    .mockReturnValue({ $fragment: () => inviteRecords });
 
-  beforeEach(() => (inviteRecord = null));
+  beforeEach(() => (inviteRecords = []));
 
   test("return nothing if nothing passed", async () => {
     const res = await userExports.validateInviteToken(undefined, casual.email);
-    expect(res).toBeUndefined();
+    expect(res).toHaveLength(0);
   });
 
   test("throws if token is not found", async () => {
@@ -152,18 +172,21 @@ describe("userExports.validateInviteToken", () => {
   });
 
   test("throws if email does not match token email", async () => {
-    inviteRecord = { email: casual.email };
+    inviteRecords = [{ email: casual.email }];
     await expect(
       userExports.validateInviteToken(casual.word, casual.email)
     ).rejects.toThrow(new InviteTokenEmailError());
   });
 
-  test("does not throw if token found and email matches", async () => {
-    const email = casual.email;
-    inviteRecord = { email };
+  test("returns all tokens when token found and email matches", async () => {
+    // Casual generates emails in TitleCase, be we store them in lowercase from
+    // the inviteUser mutation.
+    const email = casual.email.toLowerCase();
+    inviteRecords = [{ email: email }];
+
     await expect(
-      userExports.validateInviteToken(casual.word, email)
-    ).resolves.toBeDefined();
+      userExports.validateInviteToken(casual.word, email.toUpperCase())
+    ).resolves.toStrictEqual(inviteRecords);
   });
 });
 

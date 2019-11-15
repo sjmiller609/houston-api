@@ -9,7 +9,7 @@ export async function subscribe(parent, args, { db, pubsub }) {
   log.info("Starting log subscription");
 
   const { releaseName } = await db.query.deployment(
-    { where: { id: args.deploymentUuid } },
+    { where: { id: args.deploymentUuid, deletedAt: null } },
     `{ releaseName }`
   );
 

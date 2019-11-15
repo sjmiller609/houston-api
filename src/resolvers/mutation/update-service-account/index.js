@@ -1,4 +1,5 @@
-import { checkPermission } from "rbac";
+import serviceAccountFragment from "rbac/service-account-fragment";
+import { addFragmentToInfo } from "graphql-binding";
 import { pick } from "lodash";
 
 /*
@@ -9,26 +10,14 @@ import { pick } from "lodash";
  * @return {ServiceAccount} The updated ServiceAccount.
  */
 export default async function updateServiceAccount(parent, args, ctx, info) {
-  // Extract entity information.
-  const { entityType: upperEntityType, entityId } = args.payload;
-  const entityType =
-    upperEntityType != null ? upperEntityType.toLowerCase() : null;
-
-  // Make sure we have permission to do this.
-  checkPermission(
-    ctx.user,
-    `${entityType}.serviceAccounts.update`,
-    entityType,
-    entityId
-  );
-
   // The external facing schema is too loose as JSON.
   // For now, we just pluck out any props that are not in this list.
   const data = pick(args.payload, ["category", "label"]);
   const where = { id: args.serviceAccountUuid };
+  const role = args.payload.role;
 
   // Get role bindings
-  if (data.role) {
+  if (role) {
     const roleBindings = await ctx.db.query.roleBindings(
       { where: { serviceAccount: where } },
       "{ id }"
@@ -38,10 +27,13 @@ export default async function updateServiceAccount(parent, args, ctx, info) {
     if (roleBindings.length > 0) {
       ctx.db.mutation.updateRoleBinding({
         where: { id: roleBindings[0].id },
-        data: { role: data.role }
+        data: { role: role }
       });
     }
   }
 
-  return ctx.db.mutation.updateServiceAccount({ where, data }, info);
+  return ctx.db.mutation.updateServiceAccount(
+    { where, data },
+    addFragmentToInfo(info, serviceAccountFragment)
+  );
 }

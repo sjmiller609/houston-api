@@ -12,7 +12,7 @@ import moment from "moment";
  */
 export default async function logs(parent, args, ctx) {
   const { releaseName } = await ctx.db.query.deployment(
-    { where: { id: args.deploymentUuid } },
+    { where: { id: args.deploymentUuid, deletedAt: null } },
     `{ releaseName }`
   );
 

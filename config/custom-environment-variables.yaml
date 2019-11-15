@@ -37,6 +37,14 @@ elasticsearch:
     __name: "ELASTICSEARCH__MOCK_IN_DEVELOPMENT"
     __format: "json"
 
+prometheus:
+  enabled:
+    __name: "PROMETHEUS__ENABLED"
+    __format: "json"
+  host: "PROMETHEUS__HOST"
+  port: "PROMETHEUS__PORT"
+  pollInterval: "PROMETHEUS__POLL_INTERVAL"
+
 email:
   enabled:
     __name: "EMAIL__ENABLED"
@@ -120,6 +128,9 @@ jwt:
     certPath: "JWT__REGISTRY__CERT_PATH"
     issuer: "JWT__REGISTRY__ISSUER"
     service: "JWT__REGISTRY__SERVICE"
+    baseImages:
+      __name: "JWT__REGISTRY__BASE_IMAGES"
+      __format: "json"
 
 publicSignups:
   __name: "PUBLIC_SIGNUPS"

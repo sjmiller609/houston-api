@@ -4,7 +4,7 @@ import casual from "casual";
 import { graphql } from "graphql";
 import { makeExecutableSchema } from "graphql-tools";
 import { importSchema } from "graphql-import";
-import { AIRFLOW_EXECUTOR_CELERY } from "constants";
+import { AIRFLOW_EXECUTOR_DEFAULT } from "constants";
 
 // Import our application schema
 const schema = makeExecutableSchema({
@@ -53,7 +53,7 @@ describe("upgradeDeployment", () => {
     const updateDeployment = jest.fn().mockReturnValue({
       id,
       releaseName: generateReleaseName(),
-      config: { executor: AIRFLOW_EXECUTOR_CELERY },
+      config: { executor: AIRFLOW_EXECUTOR_DEFAULT },
       createdAt: new Date(),
       updatedAt: new Date()
     });

@@ -7,20 +7,18 @@ import { getStripeCard } from "stripe";
  */
 export default async function card(parent, args) {
   const { stripeCustomerId } = args;
-  const response = await getStripeCard(stripeCustomerId);
+  const customerInfo = await getStripeCard(stripeCustomerId);
+  const cardInfo = customerInfo.sources.data[0];
 
-  const customerInfo = response;
-  const cardInfo = response.sources.data[0] || {};
-
-  const card = {
-    expMonth: cardInfo.exp_month,
-    expYear: cardInfo.exp_year,
-    last4: cardInfo.last4,
-    name: cardInfo.name,
-    brand: cardInfo.brand,
-    billingEmail: customerInfo.email,
-    company: customerInfo.metadata.company
-  };
-
-  return card;
+  return cardInfo
+    ? {
+        expMonth: cardInfo.exp_month,
+        expYear: cardInfo.exp_year,
+        last4: cardInfo.last4,
+        name: cardInfo.name,
+        brand: cardInfo.brand,
+        billingEmail: customerInfo.email,
+        company: customerInfo.metadata.company
+      }
+    : null;
 }

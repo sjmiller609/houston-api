@@ -1,5 +1,6 @@
 import adjectives from "./adjectives";
 import nouns from "./nouns";
+import { objectToArrayOfKeyValue } from "deployments/config";
 import config from "config";
 import Haikunator from "haikunator";
 
@@ -23,6 +24,24 @@ export function generateNamespace(releaseName) {
   return singleNamespace
     ? releaseNamespace
     : `${releaseNamespace}-${releaseName}`;
+}
+
+/*
+ * Return an empty array if single namespace mode,
+ * otherwise return the labels from the config file
+ * @param {Object} platform Platform information {"release", "workspace"}
+ * @return array of objects in the form {"key": ****, "value": ***}
+ */
+export function generateDeploymentLabels(platform = {}) {
+  const { singleNamespace } = config.get("helm");
+  const { namespaceLabels } = config.get("deployments");
+
+  const objectOfKeys = {
+    ...(singleNamespace ? {} : namespaceLabels),
+    ...platform
+  };
+
+  return objectToArrayOfKeyValue(objectOfKeys);
 }
 
 /*

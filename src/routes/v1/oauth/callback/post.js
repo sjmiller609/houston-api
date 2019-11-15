@@ -34,7 +34,9 @@ export default async function(req, res, next) {
   // Grab user data
   // Some IDPs don't return useful info, so fall back to the claims if we don't have it
   const userData = merge(await provider.userinfo(tokenSet.access_token), {
-    email: tokenSet.claims.email || tokenSet.claims.preferred_username,
+    email:
+      tokenSet.claims.email.toLowerCase() ||
+      tokenSet.claims.preferred_username.toLowerCase(),
     sub: tokenSet.claims.sub,
     name: tokenSet.claims.name || tokenSet.claims.unique_name
   });
@@ -102,7 +104,7 @@ export default async function(req, res, next) {
   ]);
 
   // Respond with redirect to orbit.
-  const url = `${orbit()}/${state.redirect}?${qs}`;
+  const url = `${orbit()}/${state.redirect || "oauth"}?${qs}`;
   const cleanUrl = url.replace(/([^:]\/)\/+/g, "$1");
   res.redirect(cleanUrl);
 }

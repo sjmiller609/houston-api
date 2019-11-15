@@ -21,8 +21,8 @@ import {
   DEPLOYMENT_PROPERTY_ALERT_EMAILS,
   DEPLOYMENT_PROPERTY_COMPONENT_VERSION,
   AIRFLOW_EXECUTOR_LOCAL,
-  AIRFLOW_EXECUTOR_CELERY,
   AIRFLOW_EXECUTOR_KUBERNETES,
+  AIRFLOW_EXECUTOR_DEFAULT,
   AIRFLOW_COMPONENT_SCHEDULER,
   AIRFLOW_COMPONENT_WORKERS,
   AIRFLOW_COMPONENT_PGBOUNCER,
@@ -97,8 +97,7 @@ export function limitRange() {
   const containerLimit = {
     type: "Container",
     default: min,
-    defaultRequest: min,
-    min
+    defaultRequest: min
   };
 
   return { limits: [podLimit, containerLimit] };
@@ -118,11 +117,16 @@ export function constraints(deployment) {
   }
 
   // Get some config settings.
-  const { astroUnit, components, executors } = config.get("deployments");
+  const {
+    astroUnit,
+    components,
+    executors,
+    sidecars: staticSidecarUnit
+  } = config.get("deployments");
   const elasticsearchEnabled = config.get("elasticsearch.enabled");
 
   // Get the executor on this deployment.
-  const executor = get(deployment, "config.executor", AIRFLOW_EXECUTOR_CELERY);
+  const executor = get(deployment, "config.executor", AIRFLOW_EXECUTOR_DEFAULT);
 
   // Get the configuration for that executor.
   const executorConfig = find(executors, ["name", executor]);
@@ -157,7 +161,19 @@ export function constraints(deployment) {
 
   const sidecars = executorConfig.components.reduce(
     (acc, cur) => {
+      // How many replicas of this component.
       const replicas = get(deployment, `${cur}.replicas`, 1);
+
+      // Get default sidecar resources to add, and just go ahead and
+      // add it to the accumulator.
+      const defaultSidecarResources = auToResources(
+        staticSidecarUnit,
+        replicas,
+        false
+      );
+      acc.cpu += defaultSidecarResources.cpu;
+      acc.memory += defaultSidecarResources.memory;
+
       if (
         executor === AIRFLOW_EXECUTOR_LOCAL &&
         cur === AIRFLOW_COMPONENT_SCHEDULER
@@ -352,7 +368,7 @@ export function auToResources(au, size, includeUnits = true) {
  * @param {[]Object} An array of objects with key/value pairs.
  * @return {Object} The object with key/value pairs.
  */
-export function envArrayToObject(arr = []) {
+export function arrayOfKeyValueToObject(arr = []) {
   return fromPairs(arr.map(i => [i.key, i.value]));
 }
 
@@ -361,7 +377,7 @@ export function envArrayToObject(arr = []) {
  * @param {Object} An array of objects with key/value pairs.
  * @return {[]Object} The object with key/value pairs.
  */
-export function envObjectToArray(obj = {}) {
+export function objectToArrayOfKeyValue(obj = {}) {
   return map(obj, (value, key) => ({ key, value }));
 }
 
@@ -433,7 +449,7 @@ export function generateNextTag(latest) {
  * @return {Object} The default config.
  */
 export function generateDefaultDeploymentConfig() {
-  return { executor: AIRFLOW_EXECUTOR_CELERY };
+  return { executor: AIRFLOW_EXECUTOR_DEFAULT };
 }
 
 /*

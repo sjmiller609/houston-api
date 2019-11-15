@@ -26,21 +26,21 @@ const mutation = `
 `;
 
 describe("deleteDeployment", () => {
-  let id, deleteDeployment, db, commander, vars;
+  let id, updateDeployment, db, commander, vars;
 
   beforeEach(() => {
     // Create some deployment vars.
     id = casual.uuid;
 
     // Mock up some db functions.
-    deleteDeployment = jest.fn().mockReturnValue({
+    updateDeployment = jest.fn().mockReturnValue({
       id,
       releaseName: generateReleaseName()
     });
 
     // Construct db object for context.
     db = {
-      mutation: { deleteDeployment }
+      mutation: { updateDeployment }
     };
 
     // Create mock commander client.
@@ -66,7 +66,14 @@ describe("deleteDeployment", () => {
       );
 
       expect(res.errors).toBeUndefined();
-      expect(deleteDeployment.mock.calls.length).toBe(1);
+      expect(updateDeployment).toBeCalledTimes(1);
+      expect(updateDeployment).toBeCalledWith(
+        {
+          data: { deletedAt: expect.any(Date) },
+          where: { id }
+        },
+        expect.anything()
+      );
       expect(commander.request.mock.calls.length).toBe(1);
       expect(commander.request.mock.calls[0][0]).toBe("deleteDeployment");
       expect(commander.request.mock.calls[0][1].deleteNamespace).toBe(true);
@@ -87,7 +94,14 @@ describe("deleteDeployment", () => {
       );
 
       expect(res.errors).toBeUndefined();
-      expect(deleteDeployment.mock.calls.length).toBe(1);
+      expect(updateDeployment).toBeCalledTimes(1);
+      expect(updateDeployment).toBeCalledWith(
+        {
+          data: { deletedAt: expect.any(Date) },
+          where: { id }
+        },
+        expect.anything()
+      );
       expect(commander.request.mock.calls.length).toBe(1);
       expect(commander.request.mock.calls[0][0]).toBe("deleteDeployment");
       expect(commander.request.mock.calls[0][1].deleteNamespace).toBe(false);

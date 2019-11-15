@@ -55,7 +55,7 @@ export function createLogQuery(release, component, gt, searchPhrase) {
     sort: "@timestamp:desc",
     // This matches a value in orbit.
     // It's equal to the maximum records orbit will keep in its cache.
-    size: 300,
+    size: 800,
     body: {
       query: {
         bool: {

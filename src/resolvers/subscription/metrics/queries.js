@@ -42,7 +42,7 @@ export default function queries(deployment, since, step) {
       {
         name: "schedulerHeartbeat",
         query: query(
-          `round(rate(airflow_scheduler_heartbeat{deployment=~"${deployment}", type="counter"}${duration}) * 5)`
+          `rate(airflow_scheduler_heartbeat{deployment=~"${deployment}", type="counter"}[1m])`
         )
       },
       {
@@ -50,14 +50,14 @@ export default function queries(deployment, since, step) {
         query: query(
           `sort_desc(max by (container, pod, reason) (
             max by (container, pod) (
-              sort_desc(kube_pod_container_status_waiting{release=~"${deployment}"}
+              sort_desc(kube_pod_container_status_waiting{release=~"${deployment}", container!="istio-proxy"}
               and on(pod,namespace) kube_pod_labels{label_dag_id=""})
             )
             or max by (container, reason) (
-              sort_desc(kube_pod_container_status_waiting_reason{release=~"${deployment}"}==1 and on(pod,namespace) kube_pod_labels{label_dag_id=""})
+              sort_desc(kube_pod_container_status_waiting_reason{release=~"${deployment}", container!="istio-proxy"}==1 and on(pod,namespace) kube_pod_labels{label_dag_id=""})
             )
             or max by (container, reason) (
-              sort_desc(kube_pod_container_status_terminated_reason{release=~"${deployment}"}==1 and on(pod,namespace) kube_pod_labels{label_dag_id=""})
+              sort_desc(kube_pod_container_status_terminated_reason{release=~"${deployment}", container!="istio-proxy"}==1 and on(pod,namespace) kube_pod_labels{label_dag_id=""})
             ))
           )`
         )
@@ -93,10 +93,10 @@ export default function queries(deployment, since, step) {
         query: query(
           `sort_desc(max by (container, pod, reason) (
             max by (container, pod) (
-            sort_desc(kube_pod_container_status_waiting{release=~"${deployment}"} and on(pod,namespace) kube_pod_labels{label_dag_id!=""})  )
+            sort_desc(kube_pod_container_status_waiting{release=~"${deployment}", container!="istio-proxy"} and on(pod,namespace) kube_pod_labels{label_dag_id!=""})  )
             or max by (container, reason) (
-            sort_desc(kube_pod_container_status_waiting_reason{release=~"${deployment}"}==1 and on(pod,namespace) kube_pod_labels{label_dag_id!=""}) )
-            or max by (container, reason) (sort_desc(kube_pod_container_status_terminated_reason{release=~"${deployment}"}==1 and on(pod,namespace) kube_pod_labels{label_dag_id!=""}) )))`
+            sort_desc(kube_pod_container_status_waiting_reason{release=~"${deployment}", container!="istio-proxy"}==1 and on(pod,namespace) kube_pod_labels{label_dag_id!=""}) )
+            or max by (container, reason) (sort_desc(kube_pod_container_status_terminated_reason{release=~"${deployment}", container!="istio-proxy"}==1 and on(pod,namespace) kube_pod_labels{label_dag_id!=""}) )))`
         )
       }
     ],
@@ -162,40 +162,40 @@ export default function queries(deployment, since, step) {
       {
         name: "maxPods",
         query: query(
-          `sum(kube_resourcequota{resource="pods", type="hard", release=~"${deployment}"})`
+          `sum(kube_resourcequota{resource="pods", type="hard", release=~"${deployment}", resourcequota=~"${deployment}-resource-quota"})`
         )
       },
       {
         name: "cpuMax",
         query: query(
-          `sum(kube_resourcequota{resource="limits.cpu", type="hard", release=~"${deployment}"})`
+          `sum(kube_resourcequota{resource="limits.cpu", type="hard", release=~"${deployment}", resourcequota=~"${deployment}-resource-quota"})`
         )
       },
       {
         name: "memoryMax",
         query: query(
-          `sum(kube_resourcequota{resource="limits.memory", type="hard", release=~"${deployment}"})`
+          `sum(kube_resourcequota{resource="limits.memory", type="hard", release=~"${deployment}", resourcequota=~"${deployment}-resource-quota"})`
         )
       },
       {
         name: "runningPods",
         query: query(
-          `sum(kube_resourcequota{resource="pods", type="used", release=~"${deployment}"}) /
-           sum(kube_resourcequota{resource="pods", type="hard", release=~"${deployment}"}) * 100`
+          `sum(kube_resourcequota{resource="pods", type="used", release=~"${deployment}", resourcequota=~"${deployment}-resource-quota"}) /
+           sum(kube_resourcequota{resource="pods", type="hard", release=~"${deployment}", resourcequota=~"${deployment}-resource-quota"}) * 100`
         )
       },
       {
         name: "reservedCPU",
         query: query(
-          `sum(kube_resourcequota{resource="limits.cpu", type="used", release=~"${deployment}"}) /
-           sum(kube_resourcequota{resource="limits.cpu", type="hard", release=~"${deployment}"}) * 100`
+          `sum(kube_resourcequota{resource="limits.cpu", type="used", release=~"${deployment}", resourcequota=~"${deployment}-resource-quota"}) /
+           sum(kube_resourcequota{resource="limits.cpu", type="hard", release=~"${deployment}", resourcequota=~"${deployment}-resource-quota"}) * 100`
         )
       },
       {
         name: "reservedMemory",
         query: query(
-          `sum(kube_resourcequota{resource="limits.memory", type="used", release=~"${deployment}"}) /
-           sum(kube_resourcequota{resource="limits.memory", type="hard", release=~"${deployment}"}) * 100`
+          `sum(kube_resourcequota{resource="limits.memory", type="used", release=~"${deployment}", resourcequota=~"${deployment}-resource-quota"}) /
+           sum(kube_resourcequota{resource="limits.memory", type="hard", release=~"${deployment}", resourcequota=~"${deployment}-resource-quota"}) * 100`
         )
       }
     ],
@@ -203,13 +203,13 @@ export default function queries(deployment, since, step) {
       {
         name: "cpuUsage",
         query: rangeQuery(
-          `rate(container_cpu_user_seconds_total{component_name=~".*(${components}).*", deployment=~"${deployment}"}${duration}) * 100`
+          `label_replace(sum(rate(container_cpu_usage_seconds_total{deployment=~"${deployment}", component_name != "POD",image!="", container_name!="istio-proxy"}${duration})) by (pod_name, container_name, component_name, namespace, short_name)/  sum(container_spec_cpu_quota{deployment=~"${deployment}",  component_name != "POD",image!="", container_name!="istio-proxy"}/container_spec_cpu_period{deployment=~"${deployment}",  component_name != "POD",image!="", container_name!="istio-proxy"}) by (pod_name, container_name, component_name, namespace, short_name)*100,  "short_name",  "$1",  "pod_name",  "^${deployment}-(.*)$")`
         )
       },
       {
         name: "memoryUsage",
         query: rangeQuery(
-          `container_memory_usage_bytes{component_name=~".*(${components}).*", deployment=~"${deployment}"}`
+          `container_memory_usage_bytes{deployment=~"${deployment}",component_name != "POD",image!="", container_name!="istio-proxy"} * 100 / container_spec_memory_limit_bytes{deployment=~"${deployment}",component_name != "POD",image!="", container_name!="istio-proxy"}`
         )
       },
       {

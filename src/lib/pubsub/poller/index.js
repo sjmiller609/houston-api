@@ -38,13 +38,13 @@ export default function createPoller(
   // Create a typical async iterator, but overwrite the return function
   // and cancel the timer. The return function gets called by the apollo server
   // when a subscription is cancelled.
-  return {
-    ...iterator,
-    return: () => {
-      log.info(`Disconnecting subscription ${topic}`);
-      clearInterval(poll);
-      clearTimeout(kill);
-      return iterator.return();
-    }
+  iterator.return = () => {
+    log.info(`Disconnecting subscription ${topic}`);
+    clearInterval(poll);
+    clearTimeout(kill);
+    return Promise.resolve({ value: undefined, done: true });
   };
+
+  // Return the AsyncIterator
+  return iterator;
 }

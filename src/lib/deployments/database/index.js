@@ -101,6 +101,29 @@ export async function createDatabaseForDeployment(deployment) {
 }
 
 /*
+ * Drop databases from createDatabaseForDeployment.
+ * @param {Object} config An object containing configuration
+ */
+export async function removeDatabaseForDeployment(deployment) {
+  const { enabled, connection } = config.get("deployments.database");
+  // Exit early if we have database creation disabled.
+  if (!enabled) {
+    log.info("Deployment database creation disabled, skipping");
+    return {};
+  }
+
+  // Parse the connection into a standard format.
+  const parsedConn = parseConnection(connection);
+
+  // Create connection as root user.
+  const rootConn = createConnection(parsedConn);
+
+  const dbName = generateDatabaseName(deployment.releaseName);
+  log.info(`Droping database: ${dbName}`);
+  await rootConn.raw(`DROP DATABASE ${dbName};`);
+}
+
+/*
  * Create a new database connection.
  * @param {Object} config An object containing configuration
  * information for the database.

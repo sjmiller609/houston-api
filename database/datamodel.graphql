@@ -16,7 +16,7 @@ type User {
   status: String
   fullName: String
   avatarUrl: String
-  emails: [Email!]!
+  emails: [Email!]! @relation(name: "EmailToUser", onDelete: CASCADE)
   roleBindings: [RoleBinding!]! @relation(name: "RoleBindingToUser", onDelete: CASCADE)
   localCredential: LocalCredential @relation(name: "LocalCredentialToUser", onDelete: CASCADE, link: INLINE)
   oauthCredentials: [OAuthCredential!]! @relation(name: "OAuthCredentialToUser", onDelete: CASCADE)
@@ -44,7 +44,7 @@ type Email {
   address: String @unique
   primary: Boolean
   token: String @unique
-  user: User
+  user: User @relation(name: "EmailToUser")
   verified: Boolean
   createdAt: DateTime! @createdAt
   updatedAt: DateTime! @updatedAt
@@ -126,4 +126,19 @@ type Deployment {
   workspace: Workspace
   createdAt: DateTime! @createdAt
   updatedAt: DateTime! @updatedAt
+  deletedAt: DateTime
+  images: [DockerImage!] @relation(name: "DeploymentDockerImages" onDelete: CASCADE)
+}
+
+type DockerImage {
+  id: ID! @id
+  # Even though we only "need" the tag, to make it a unique string that we can
+  # create/update by we include repository in this too.
+  name: String @unique
+  labels: Json!
+  env: Json!
+  tag: String!
+  digest: String!
+  deployment: Deployment! @relation(name: "DeploymentDockerImages" onDelete: CASCADE)
+  createdAt: DateTime! @createdAt
 }

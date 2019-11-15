@@ -1,19 +1,21 @@
+import { hasPermission } from "rbac";
 import {
   generateNamespace,
   generateEnvironmentSecretName
 } from "deployments/naming";
 import {
-  envObjectToArray,
+  objectToArrayOfKeyValue,
   mapDeploymentToProperties,
   findLatestTag,
   generateNextTag
 } from "deployments/config";
-import { createDockerJWT } from "registry/jwt";
-import { get } from "lodash";
+import { get, map } from "lodash";
 import config from "config";
-import request from "request-promise-native";
-import { NOT_FOUND } from "http-status-codes";
-import { AIRFLOW_EXECUTOR_CELERY, DEPLOYMENT_AIRFLOW } from "constants";
+import {
+  AIRFLOW_EXECUTOR_CELERY,
+  DEPLOYMENT_AIRFLOW,
+  ENTITY_DEPLOYMENT
+} from "constants";
 
 /*
  * Return a list of important urls for this deployment.
@@ -60,7 +62,7 @@ export async function env(parent, args, ctx) {
   });
 
   // Transform the returned object into an array.
-  return envObjectToArray(get(envs, "secret.data"));
+  return objectToArrayOfKeyValue(get(envs, "secret.data"));
 }
 
 /*
@@ -85,43 +87,54 @@ export function type() {
  * @param {Object} parent The result of the parent resolver.
  * @return {Object} The deployment info.
  */
-export async function deployInfo(parent) {
-  // Build the repo name.
-  const repo = `${parent.releaseName}/${DEPLOYMENT_AIRFLOW}`;
-
-  // Create a JWT for the registry request.
-  const dockerJWT = await createDockerJWT("houston", [
+export async function deployInfo(parent, args, ctx) {
+  const images = await ctx.db.query.dockerImages(
     {
-      type: "repository",
-      name: repo,
-      actions: ["push", "pull"]
-    }
-  ]);
+      where: { deployment: { id: parent.id }, tag_starts_with: "cli-" }
+    },
+    `{ tag }`
+  );
+  const tags = map(images, "tag");
+  const latest = findLatestTag(tags);
+  const nextCli = generateNextTag(latest);
 
-  // Build the registry request URL.
-  const baseDomain = config.get("helm.baseDomain");
-  const uri = `https://registry.${baseDomain}/v2/${repo}/tags/list`;
-
-  try {
-    // Request a list of tags.
-    const repo = await request({
-      method: "GET",
-      uri,
-      json: true,
-      headers: { Authorization: `Bearer ${dockerJWT}` }
-    });
-
-    // Generate the response based on list.
-    const latest = findLatestTag(repo.tags);
-    const next = generateNextTag(latest);
-    return { latest, next };
-  } catch (err) {
-    // If we get a 404, that means nobody has pushed yet, so just return empty.
-    if (err.statusCode === NOT_FOUND) return {};
-
-    // Otherwise throw the actual error.
-    throw err;
-  }
+  const imagesCreated = await ctx.db.query.dockerImages(
+    {
+      where: { deployment: { id: parent.id } },
+      order: [["created", "DESC"]],
+      limit: 1
+    },
+    `{ tag }`
+  );
+  const current = map(imagesCreated, "tag")[0];
+  return { latest, nextCli, current };
 }
 
-export default { urls, env, type, properties, deployInfo };
+/*
+ * Return boolean flags indicating what the current user has access to
+ * on a particular deployment.
+ * @param {Object} parent The result of the parent resolver.
+ * @param {Object} args The graphql arguments.
+ * @param {Object} ctx The graphql context.
+ * @return {DeploymentCapabilities} Map of boolean capabilities.
+ */
+export function deploymentCapabilities(parent, args, ctx) {
+  // Check to see if user has permission to deploy
+  const canDeploy = hasPermission(
+    ctx.user,
+    "deployment.images.push",
+    ENTITY_DEPLOYMENT.toLowerCase(),
+    parent.id
+  );
+
+  return { canDeploy };
+}
+
+export default {
+  urls,
+  env,
+  type,
+  properties,
+  deployInfo,
+  deploymentCapabilities
+};

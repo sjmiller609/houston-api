@@ -1,12 +1,14 @@
 /*
  * List of potential actions reported by the docker registry.
  */
-const ACTIONS = {
+export const ACTIONS = {
   PUSH: "push",
   PULL: "pull",
   MOUNT: "mount",
   DELETE: "delete"
 };
+
+export const VALID_RELEASE_NAME = /^(?<releaseName>[a-z]+-[a-z]+-[0-9]{0,4})\/airflow$/;
 
 /*
  * Handle webhooks from the docker registry.
@@ -17,6 +19,7 @@ export default function isValidTaggedDeployment(ev) {
   return (
     ev.action === ACTIONS.PUSH &&
     ev.target.tag.length > 0 &&
-    ev.target.tag !== "latest"
+    ev.target.tag !== "latest" &&
+    VALID_RELEASE_NAME.test(ev.target.repository)
   );
 }

@@ -1,0 +1,21 @@
+version: "3"
+services:
+  houston:
+    build:
+      context: .      
+    environment:
+      NODE_ENV: "development"
+      WEBSERVER__PORT: "8871"
+      PRISMA__ENDPOINT: "http://prisma:4466/houston"
+      PRISMA__DEBUG: "false"
+      PRISMA__SECRET: "secret"
+      ORBIT__PORT: "8080"
+      DATABASE__CONNECTION: "postgres://postgres:postgres@postgres:5432/postgres"
+      PUBLIC_SIGNUPS: "true"
+      EMAIL_CONFIRMATION: "false"
+      EMAIL__ENABLED: "false"
+      JWT__PASSPHRASE: "secretpassword"
+      DEPLOYMENTS__DATABASE__CONNECTION: "postgres://postgres:postgres@postgres:5432/postgres"
+      DEPLOYMENTS__DATABASE__ENABLED: "true"
+      DEPLOYMENTS__LOG_HELM_VALUES: "true"
+      HELM__RELEASE_VERSION: "0.7.5"

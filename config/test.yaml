@@ -12,6 +12,12 @@ commander:
 # This is where the airflow chart is installed from.
 repository: "https://helm.astronomer.io/"
 
+# Test that we can disable a specific permission in an override
+roles:
+  SYSTEM_VIEWER:
+    permissions:
+      system.monitoring.get: false
+
 # Helm configuration.
 # These values are set at runtime and used for airflow deployments.
 helm:
@@ -61,6 +67,8 @@ jwt:
   # JWT / Cookie duration in milliseconds.
   authDuration: 86400000
   certPath: ./test-data/certs/
+  registry:
+    certPath: ./test-data/certs/
 
 # Deployment configuration.
 deployments:

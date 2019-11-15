@@ -13,7 +13,7 @@ PORT=$(echo "${PRISMA__ENDPOINT}" | awk -F: '{print $3}' | awk -F/ '{print $1}')
 
 echo "Waiting for host: ${HOST} ${PORT}"
 while ! nc -w 1 -z "${HOST}" "${PORT}"; do
-    sleep 0.001
+    sleep 1
 done
 echo "Received response from: ${HOST} ${PORT}"
 

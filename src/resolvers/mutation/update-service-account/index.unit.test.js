@@ -3,7 +3,7 @@ import casual from "casual";
 import { graphql } from "graphql";
 import { makeExecutableSchema } from "graphql-tools";
 import { importSchema } from "graphql-import";
-import { ENTITY_WORKSPACE, WORKSPACE_ADMIN, WORKSPACE_VIEWER } from "constants";
+import { WORKSPACE_ADMIN } from "constants";
 
 // Import our application schema
 const schema = makeExecutableSchema({
@@ -64,9 +64,7 @@ describe("updateServiceAccount", () => {
     const vars = {
       serviceAccountUuid: serviceAccountId,
       payload: {
-        label,
-        entityType: ENTITY_WORKSPACE,
-        entityId: workspaceId
+        label
       }
     };
 
@@ -81,46 +79,6 @@ describe("updateServiceAccount", () => {
       { where, data },
       expect.any(Object)
     );
-  });
-
-  test("lesser privleged user is denied", async () => {
-    const workspaceId = casual.uuid;
-    const serviceAccountId = casual.uuid;
-    const label = casual.title;
-
-    // Mock up a user.
-    const user = {
-      id: casual.uuid,
-      roleBindings: [
-        {
-          role: WORKSPACE_VIEWER,
-          workspace: { id: workspaceId }
-        }
-      ]
-    };
-
-    // Mock up some functions.
-    const updateServiceAccount = jest.fn();
-
-    // Construct db object for context.
-    const db = {
-      mutation: { updateServiceAccount }
-    };
-
-    // Vars for the gql mutation.
-    const vars = {
-      serviceAccountUuid: serviceAccountId,
-      payload: {
-        label,
-        entityType: ENTITY_WORKSPACE,
-        entityId: workspaceId
-      }
-    };
-
-    // Run the graphql mutation.
-    const res = await graphql(schema, mutation, null, { db, user }, vars);
-    expect(res.errors).toHaveLength(1);
-    expect(updateServiceAccount).toHaveBeenCalledTimes(0);
   });
 
   test("invalid fields are ignored", async () => {
@@ -153,9 +111,7 @@ describe("updateServiceAccount", () => {
       serviceAccountUuid: serviceAccountId,
       payload: {
         label,
-        invalidField,
-        entityType: ENTITY_WORKSPACE,
-        entityId: workspaceId
+        invalidField
       }
     };
 

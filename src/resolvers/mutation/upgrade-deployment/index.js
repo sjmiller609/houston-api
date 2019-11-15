@@ -12,7 +12,7 @@ import { DEPLOYMENT_AIRFLOW } from "constants";
  */
 export default async function upgradeDeployment(parent, args, ctx, info) {
   // Update the deployment in the database.
-  const where = { id: args.deploymentUuid };
+  const where = { id: args.deploymentUuid, deletedAt: null };
   const data = { version: args.version };
   const updatedDeployment = await ctx.db.mutation.updateDeployment(
     { where, data },

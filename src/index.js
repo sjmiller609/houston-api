@@ -19,6 +19,7 @@ import { createServer } from "http";
 
 // Get configuration from config dir and environment.
 const serverConfig = config.get("webserver");
+const corsConfig = config.get("cors");
 const helmConfig = config.get("helm");
 const prismaConfig = config.get("prisma");
 
@@ -84,8 +85,9 @@ server.applyMiddleware({
   path: serverConfig.endpoint,
   cors: {
     origin: [
-      "http://app.local.astronomer.io:5000", // Development orbit build
-      "http://app.local.astronomer.io:8080", // Production orbit build
+      ...corsConfig.allowedOrigins,
+      "http://app.local.astronomer.io:5000",
+      "http://app.local.astronomer.io:8080",
       new RegExp(":\\/\\/localhost[:\\d+]?"),
       new RegExp(`.${helmConfig.baseDomain}$`)
     ],

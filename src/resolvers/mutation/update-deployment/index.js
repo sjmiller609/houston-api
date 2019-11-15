@@ -1,7 +1,7 @@
-import fragment from "./fragment";
+import { queryFragment, responseFragment } from "./fragments";
 import validate from "deployments/validate";
 import {
-  envArrayToObject,
+  arrayOfKeyValueToObject,
   generateHelmValues,
   mapPropertiesToDeployment,
   mapCustomEnvironmentVariables
@@ -26,22 +26,16 @@ import { DEPLOYMENT_AIRFLOW } from "constants";
 export default async function updateDeployment(parent, args, ctx, info) {
   // Get the deployment first.
   const deployment = await ctx.db.query.deployment(
-    { where: { id: args.deploymentUuid } },
-    `{ releaseName, workspace { id } }`
+    { where: { id: args.deploymentUuid, deletedAt: null } },
+    queryFragment
   );
 
   // Block config changes if the user is in a trial
-
-  const workspace = await ctx.db.query.workspace(
-    {
-      where: { id: deployment.workspace.id }
-    },
-    `{ stripeCustomerId, isSuspended }`
-  );
   const stripeEnabled = config.get("stripe.enabled");
-  if (workspace.stripeCustomerId == null && stripeEnabled == true) {
+  if (!deployment.workspace.stripeCustomerId && stripeEnabled) {
     throw new TrialError();
   }
+
   // This should be directly defined in the schema, rather than nested
   // under payload as JSON. This is only here until we can migrate the
   // schema of this mutation. Orbit should also not send non-updatable
@@ -62,7 +56,7 @@ export default async function updateDeployment(parent, args, ctx, info) {
   });
 
   // Validate our args.
-  await validate(deployment.workspace.id, mungedArgs, args.deploymentUuid);
+  await validate(deployment.workspace.id, mungedArgs, deployment);
 
   // Create the update statement.
   const where = { id: args.deploymentUuid };
@@ -74,7 +68,7 @@ export default async function updateDeployment(parent, args, ctx, info) {
   // Update the deployment in the database.
   const updatedDeployment = await ctx.db.mutation.updateDeployment(
     { where, data },
-    addFragmentToInfo(info, fragment)
+    addFragmentToInfo(info, responseFragment)
   );
 
   // If we're syncing to kubernetes, fire updates to commander.
@@ -85,7 +79,7 @@ export default async function updateDeployment(parent, args, ctx, info) {
       namespace: generateNamespace(updatedDeployment.releaseName),
       secret: {
         name: generateEnvironmentSecretName(updatedDeployment.releaseName),
-        data: envArrayToObject(args.env)
+        data: arrayOfKeyValueToObject(args.env)
       }
     });
 

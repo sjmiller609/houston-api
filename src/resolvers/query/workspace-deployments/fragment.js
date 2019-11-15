@@ -1,8 +1,8 @@
 export default `fragment EnsureFields on Deployment {
   id
-  releaseName
-  version
+  workspace { id }
   extraAu
-  airflowVersion
   alertEmails
+  airflowVersion
+  config
 }`;

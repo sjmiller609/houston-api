@@ -15,9 +15,10 @@ export function createStripeCustomer(
     return log.info("Stripe disabled, payment method cannot be added.");
   }
   return stripe.customers.create({
+    name: company,
     email: billingEmail,
     source: token,
-    metadata: { workspaceId: workspaceUuid, company: company }
+    metadata: { workspaceId: workspaceUuid }
   });
 }
 

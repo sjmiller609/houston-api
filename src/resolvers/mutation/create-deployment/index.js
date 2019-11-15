@@ -2,11 +2,12 @@ import { deploymentFragment, workspaceFragment } from "./fragment";
 import {
   generateReleaseName,
   generateNamespace,
+  generateDeploymentLabels,
   generateEnvironmentSecretName
 } from "deployments/naming";
 import { createDatabaseForDeployment } from "deployments/database";
 import {
-  envArrayToObject,
+  arrayOfKeyValueToObject,
   generateHelmValues,
   mapPropertiesToDeployment,
   generateDefaultDeploymentConfig
@@ -21,7 +22,7 @@ import crypto from "crypto";
 import {
   DEPLOYMENT_AIRFLOW,
   DEPLOYMENT_PROPERTY_EXTRA_AU,
-  AIRFLOW_EXECUTOR_CELERY
+  AIRFLOW_EXECUTOR_DEFAULT
 } from "constants";
 
 /*
@@ -39,23 +40,27 @@ export default async function createDeployment(parent, args, ctx, info) {
 
   // Get executor config
   const { executors } = config.get("deployments");
-  const executor = get(args, "config.executor", AIRFLOW_EXECUTOR_CELERY);
+  const executor = get(args, "config.executor", AIRFLOW_EXECUTOR_DEFAULT);
   const executorConfig = find(executors, ["name", executor]);
 
   const where = { id: args.workspaceUuid };
-  // Throw an error if stripe is enabled (Cloud only) and a stripeCustomerId does not exist in the Workspace table
   const workspace = await ctx.db.query.workspace({ where }, workspaceFragment);
 
+  // Is stripe enabled for the system.
   const stripeEnabled = config.get("stripe.enabled");
 
+  // Throw an error if stripe is enabled (Cloud only) and a stripeCustomerId
+  // does not exist in the Workspace table
   if (
-    workspace.stripeCustomerId == null &&
-    stripeEnabled == true &&
+    !workspace.stripeCustomerId &&
+    stripeEnabled &&
     size(workspace.deployments) > 0
   ) {
     throw new TrialError();
   }
-  if (workspace.isSuspended == true && stripeEnabled == true) {
+
+  // Throw error if workspace is suspended.
+  if (workspace.isSuspended && stripeEnabled) {
     throw new WorkspaceSuspendedError();
   }
 
@@ -155,6 +160,7 @@ export default async function createDeployment(parent, args, ctx, info) {
       version: version
     },
     namespace: generateNamespace(releaseName),
+    namespaceLabels: generateDeploymentLabels(platform),
     rawConfig: JSON.stringify(generateHelmValues(deployment, values))
   });
 
@@ -169,7 +175,7 @@ export default async function createDeployment(parent, args, ctx, info) {
       namespace: generateNamespace(releaseName),
       secret: {
         name: generateEnvironmentSecretName(releaseName),
-        data: envArrayToObject(args.env)
+        data: arrayOfKeyValueToObject(args.env)
       }
     });
   }

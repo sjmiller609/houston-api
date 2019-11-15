@@ -47,6 +47,11 @@ enum Operator {
 #
 # Types
 #
+type AppConfig {
+  version: String
+  baseDomain: String
+}
+
 type AuthUser {
   user: User
   token: Token
@@ -89,17 +94,6 @@ type Invite {
   updatedAt: DateTime!
 }
 
-type Group {
-  id: ID!
-  uuid: Uuid @alias(field: "id")
-  label: String
-  active: Boolean
-  custom: Boolean
-  description: String
-  createdAt: DateTime!
-  updatedAt: DateTime!
-}
-
 # This only exists to support the legacy API.
 type UserProp {
   key: String
@@ -129,7 +123,6 @@ type Workspace {
   properties: JSON
   label: String
   users: [User]
-  groups: [Group]
   deploymentCount: Int
   stripeCustomerId: String
   roleBindings: [RoleBinding!]
@@ -172,8 +165,10 @@ type DeploymentUrl {
 }
 
 type DeployInfo {
-  latest: String
-  next: String
+  current: String
+  nextCli: String
+  latest: String @deprecated
+  next: String @deprecated @alias(field: "nextCli")
 }
 
 # Deployment properties are only to support the legacy API.
@@ -197,6 +192,11 @@ type Deployment {
   createdAt: DateTime!
   updatedAt: DateTime!
   roleBindings: [RoleBinding!]
+  deploymentCapabilities: DeploymentCapabilities
+}
+
+type DeploymentCapabilities {
+  canDeploy: Boolean
 }
 
 type ServiceAccount {
@@ -205,8 +205,10 @@ type ServiceAccount {
   apiKey: String
   label: String
   category: String
-  entityType: String
-  entityUuid: Uuid
+  entityType: String! @deprecated # backwards capability
+  entityUuid: Uuid @deprecated # backwards capability
+  workspaceUuid: Uuid @alias(field: "entityUuid")
+  deploymentUuid: Uuid @alias(field: "entityUuid")
   active: Boolean
   lastUsedAt: DateTime
   createdAt: DateTime!
@@ -239,10 +241,16 @@ type Metric {
   result: JSON
 }
 
+type DeploymentStatus {
+  result: JSON
+}
+
 #
 # Queries
 #
 type Query {
+  appConfig: AppConfig @auth
+
   authConfig(
     redirect: String
     duration: Int
@@ -252,11 +260,7 @@ type Query {
 
   self: AuthUser @auth
 
-  workspaces(
-    userUuid: Uuid
-    workspaceUuid: Uuid
-    label: String
-  ): [Workspace] @auth
+  workspaces: [Workspace] @auth
 
   deploymentConfig(
     workspaceUuid: Uuid
@@ -265,17 +269,39 @@ type Query {
     version: String
   ): DeploymentConfig @auth
 
-  deployments(
-    workspaceUuid: Uuid
-    deploymentUuid: Uuid # Ignored, only here for backward compatibility.
-    releaseName: String
-  ): [Deployment] @auth # Permissions checked in resolver, due to limitations with current API design.
+  deployments: [Deployment] @auth(permissions:["system.deployments.get"])
 
+  # New ServiceAccount (singlton) scoped query
+  deploymentServiceAccount(
+    serviceAccountUuid: Uuid!
+  ): ServiceAccount @auth(permissions: ["deployment.serviceAccounts.get", "system.serviceAccounts.get"], op: OR)
+
+  # New ServiceAccount (list) scoped query
+  deploymentServiceAccounts(
+    deploymentUuid: Uuid!
+  ): [ServiceAccount] @auth(permissions: ["deployment.serviceAccounts.get", "system.serviceAccounts.get"], op: OR)
+
+  workspaceDeployments(
+    workspaceUuid: Uuid!
+    releaseName: String
+  ): [Deployment] @auth(permissions: ["workspace.deployments.get", "system.deployments.get"], op: OR)
+
+  # Legacy - backwards compatibility
   serviceAccounts(
     serviceAccountUuid: Uuid
     entityType: EntityType!
     entityUuid: Uuid
   ): [ServiceAccount] @auth
+
+  # New ServiceAccount (singleton) scoped query
+  workspaceServiceAccount(
+    serviceAccountUuid: Uuid!
+  ): ServiceAccount @auth(permissions: ["workspace.serviceAccounts.get", "system.serviceAccounts.get"], op: OR)
+
+  # New ServiceAccounts (list) scoped query
+  workspaceServiceAccounts(
+    workspaceUuid: Uuid!
+  ): [ServiceAccount] @auth(permissions: ["workspace.serviceAccounts.get", "system.serviceAccounts.get"], op: OR)
 
   workspaceInvites(
     workspaceUuid: Uuid!
@@ -284,27 +310,31 @@ type Query {
 
   workspaceUsers(
     workspaceUuid: Uuid!
-  ): [User] @auth(permissions: ["workspace.users.list"])
+    email: String
+    fullName: String
+  ): [User] @auth(permissions: ["workspace.users.get"])
 
   workspaceUser(
     workspaceUuid: Uuid!
     username: String!
-  ): User @auth(permissions: ["workspace.users.list"])
+  ): User @auth(permissions: ["workspace.users.get"])
 
   users(
     userUuid: Uuid
     username: String
     email: String
-  ): [User] @auth(permissions: ["system.users.list"])
+  ): [User] @auth(permissions: ["system.users.get"])
 
-  invites: [Invite] @auth(permissions:["system.users.list"])
+  invites(
+    email: String
+  ): [Invite] @auth(permissions:["system.users.get"])
 
   logs(
     deploymentUuid: Uuid!
     component: String
     timestamp: DateTime
     search: String
-  ): [DeploymentLog] @auth(permissions: ["deployment.logs.get"])
+  ): [DeploymentLog] @auth(permissions: ["deployment.logs.get", "system.deployments.logs"], op: OR)
 
   card(
     workspaceUuid: Uuid!
@@ -368,17 +398,16 @@ type Mutation {
     config: JSON
     env: JSON
     sync: Boolean
-  ): Deployment @auth(permissions: ["deployment.config.update"])
-
+  ): Deployment @auth(permissions: ["deployment.config.update", "system.deployments.update"], op: OR)
 
   deploymentAlertsUpdate(
     deploymentUuid: Uuid!
     alertEmails: [String!]
-  ): Deployment @auth(permissions: ["deployment.config.update"])
+  ): Deployment @auth(permissions: ["deployment.config.update", "system.deployments.update"], op: OR)
 
   deleteDeployment(
     deploymentUuid: Uuid!
-  ): Deployment @auth(permissions: ["deployment.config.delete","system.deployment.delete"] op: OR)
+  ): Deployment @auth(permissions: ["deployment.config.delete", "system.deployments.delete"], op: OR)
 
   deleteWorkspace(
     workspaceUuid: Uuid
@@ -388,6 +417,10 @@ type Mutation {
     userId: Uuid,
     payload: JSON!
   ): User @auth
+
+  removeUser(
+    userUuid: Uuid!
+  ): User @auth(permissions: ["system.user.delete"])
 
   createWorkspace(
     label: String!
@@ -424,11 +457,12 @@ type Mutation {
   upgradeDeployment(
     deploymentUuid: Uuid!
     version: String!
-  ): Deployment @auth(permissions: ["deployment.config.update"])
+  ): Deployment @auth(permissions: ["deployment.config.update", "system.deployments.update"] op: OR)
 
   # ServiceAccount mutations are handled differently at the moment to maintain
   # backward compatibility with CLI / UI. We should refactor to
   # more explicit, scoped mutations.
+  # Legacy - backwards compatibility
   createServiceAccount(
     label: String!
     category: String
@@ -437,14 +471,54 @@ type Mutation {
     role: Role!
   ): ServiceAccount @auth
 
+  # New ServiceAccount scoped mutation
+  createDeploymentServiceAccount(
+    label: String!
+    category: String
+    deploymentUuid: Uuid!
+    role: Role!
+  ): ServiceAccount @auth(permissions: ["deployment.serviceAccounts.create", "system.serviceAccounts.create"], op: OR)
+
+  # New ServiceAccount scoped mutation
+  createWorkspaceServiceAccount(
+    label: String!
+    category: String
+    workspaceUuid: Uuid!
+    role: Role!
+  ): ServiceAccount @auth(permissions: ["workspace.serviceAccounts.create", "system.serviceAccounts.create"], op: OR)
+
+  # Legacy - backwards compatibility
   updateServiceAccount(
     serviceAccountUuid: Uuid!
     payload: JSON!
   ): ServiceAccount @auth
 
+  updateWorkspaceServiceAccount(
+    serviceAccountUuid: Uuid!
+    workspaceUuid: Uuid!
+    payload: JSON!
+  ): ServiceAccount @auth(permissions: ["workspace.serviceAccounts.update", "system.serviceAccounts.update"], op: OR)
+
+  updateDeploymentServiceAccount(
+    serviceAccountUuid: Uuid!
+    deploymentUuid: Uuid!
+    payload: JSON!
+  ): ServiceAccount @auth(permissions: ["deployment.serviceAccounts.update", "system.serviceAccounts.update"], op: OR)
+
+  # Legacy - backwards compatibility
   deleteServiceAccount(
     serviceAccountUuid: Uuid!
   ): ServiceAccount @auth
+
+  deleteWorkspaceServiceAccount(
+    serviceAccountUuid: Uuid!
+    workspaceUuid: Uuid!
+  ): ServiceAccount @auth(permissions: ["workspace.serviceAccounts.delete", "system.serviceAccounts.delete"], op: OR)
+
+  deleteDeploymentServiceAccount(
+    serviceAccountUuid: Uuid!
+    deploymentUuid: Uuid!
+  ): ServiceAccount @auth(permissions: ["deployment.serviceAccounts.delete", "system.serviceAccounts.delete"], op: OR)
 
   createSystemRoleBinding(
     userId: ID!
@@ -465,6 +539,11 @@ type Mutation {
     token: String!
   ): Card @auth(permissions: ["workspace.billing.update"])
 
+  addCustomerId(
+    workspaceUuid: Uuid!
+    stripeCustomerId: String!
+  ): Workspace @auth(permissions: ["system.workspace.addCustomerId"])
+
   updateCard(
     workspaceUuid: Uuid!
     billingEmail: String!
@@ -481,6 +560,10 @@ type Mutation {
     workspaceUuid: Uuid!
     extraDays: Int!
   ): Workspace @auth(permissions: ["system.workspace.extendTrial"])
+
+  verifyEmail(
+    email: String!
+  ): Boolean @auth(permissions: ["system.user.verifyEmail"])
 }
 
 #
@@ -492,12 +575,16 @@ type Subscription {
     component: String
     timestamp: DateTime
     search: String
-  ): DeploymentLog @auth(permissions: ["deployment.logs.get"])
+  ): DeploymentLog @auth(permissions: ["deployment.logs.get", "system.deployments.logs"], op: OR)
 
   metrics(
     deploymentUuid: Uuid!
     metricType: [MetricType]
     since: Int
     step: Int
-  ): [Metric] @auth(permissions: ["deployment.metrics.get"])
+  ): [Metric] @auth(permissions: ["deployment.metrics.get", "system.deployments.metrics"], op: OR)
+
+  deploymentStatus(
+    releaseName: String!
+  ): DeploymentStatus @auth
 }

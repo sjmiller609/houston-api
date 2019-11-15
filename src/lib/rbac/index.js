@@ -4,20 +4,25 @@ import deploymentFragment from "./deployment-fragment";
 import { decodeJWT } from "jwt";
 import { PermissionError } from "errors";
 import { prisma } from "generated/client";
-import { filter, find, flatten, includes, map, size } from "lodash";
-import config from "config";
 import {
-  ENTITY_DEPLOYMENT,
-  ENTITY_WORKSPACE,
-  DEPLOYMENT_EDITOR,
-  WORKSPACE_EDITOR
-} from "constants";
+  constant,
+  filter,
+  find,
+  fromPairs,
+  get,
+  includes,
+  isArray,
+  map,
+  size,
+  times,
+  zip
+} from "lodash";
+import config from "config";
+import { ENTITY_DEPLOYMENT, ENTITY_WORKSPACE } from "constants";
 
-// Mapping of entityTypes to role.
-export const serviceAccountRoleMappings = {
-  [ENTITY_DEPLOYMENT]: DEPLOYMENT_EDITOR,
-  [ENTITY_WORKSPACE]: WORKSPACE_EDITOR
-};
+// The config module doesn't let us edit the config at runtime, so we can't set
+// this back in place.
+export const ROLES = upgradeOldRolesConfig(config.get("roles"));
 
 /*
  * Check if the user has the given permission for the entity.
@@ -50,8 +55,9 @@ export function hasPermission(user, permission, entityType, entityId) {
   if (!binding) return false;
 
   // Otherwise return if this role has an appropriate permission.
-  const role = find(config.get("roles"), { id: binding.role });
-  return includes(role.permissions, permission);
+  const role = get(ROLES, binding.role, { permissions: [] });
+
+  return get(role.permissions, permission, false) !== false;
 }
 
 /*
@@ -61,14 +67,17 @@ export function hasPermission(user, permission, entityType, entityId) {
  * @param {Boolean} If the user has the system permission.
  */
 export function hasSystemPermission(user, permission) {
-  const permissions = flatten(
-    user.roleBindings.map(binding => {
-      const role = find(config.get("roles"), { id: binding.role });
-      return filter(role.permissions, p => p.startsWith("system"));
-    })
-  );
+  if (!user) return false;
 
-  return includes(permissions, permission);
+  for (const binding of user.roleBindings) {
+    const role = ROLES[binding.role];
+    if (!role) continue;
+
+    if (get(role.permissions, permission, false) !== false) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /*
@@ -79,6 +88,18 @@ export function hasSystemPermission(user, permission) {
  */
 export function checkPermission(user, permission, entityType, entityId) {
   if (!hasPermission(user, permission, entityType, entityId)) {
+    throw new PermissionError();
+  }
+}
+
+/*
+ * Check if the user has the given permission for the entity.
+ * Throws if the user does not have permission.
+ * @param {Object} user The current user.
+ * @param {String} permission The required permission.
+ */
+export function checkSystemPermission(user, permission) {
+  if (!hasSystemPermission(user, permission)) {
     throw new PermissionError();
   }
 }
@@ -108,10 +129,9 @@ export async function getServiceAccountWithRoleBindings(apiKey) {
 
   // Return a slightly modified version, to mimic what we return
   // for a user.
-  return {
-    id: serviceAccount.id,
-    roleBindings: [serviceAccount.roleBinding]
-  };
+  serviceAccount.roleBindings = [serviceAccount.roleBinding];
+  delete serviceAccount.roleBinding;
+  return serviceAccount;
 }
 
 /*
@@ -177,7 +197,7 @@ async function addDeploymentRoleBindings(promise) {
   // Get the deployments that are under any of our workspaces.
   const deployments = await prisma
     .deployments({
-      where: { workspace: { id_in: workspaceIds } }
+      where: { workspace: { id_in: workspaceIds }, deletedAt: null }
     })
     .$fragment(deploymentFragment);
 
@@ -216,3 +236,60 @@ async function addDeploymentRoleBindings(promise) {
 //   if (isString(user)) return getUserWithRoleBindings(user);
 //   return getUserWithRoleBindings(user.id);
 // }
+
+/* Return a list of deployment ids to which the user has the requested
+ * permission
+ * @param {Object} user The user object
+ * @return {Array} list of deploymentIds
+ */
+export function accesibleDeploymentsWithPermission(user, permission) {
+  if (!user) return [];
+
+  const entityType = ENTITY_DEPLOYMENT.toLowerCase();
+
+  return filter(user.roleBindings, binding => {
+    if (!binding[entityType]) return false;
+    const role = ROLES[binding.role];
+    if (!role) return false;
+    return get(role.permissions, permission, false) !== false;
+  }).map(binding => binding.deployment.id);
+}
+
+// Upgrade from the old list-of-lists to dict-of-dicts config style
+export function upgradeOldRolesConfig(roles) {
+  if (!isArray(roles)) return roles;
+
+  /*
+   * Input:
+   * - id: SYSTEM_EDITOR
+   *   name: System Editor
+   *   permissions:
+   *     - system.iam.update
+   *
+   * Output:
+   * SYSTEM_EDITOR:
+   *   name: System Editor
+   *   permissions:
+   *     system.iam.update: null
+   *
+   * (value as `null` so we can use the `? system.iam.update` mapping key
+   * syntax of yaml <https://yaml.org/spec/1.2/spec.html#?%20mapping%20key//>)
+   */
+
+  return fromPairs(
+    map(roles, role => {
+      return [
+        role.id,
+        {
+          name: role.name,
+          permissions: fromPairs(
+            zip(
+              role.permissions,
+              times(role.permissions.length, constant(null))
+            )
+          )
+        }
+      ];
+    })
+  );
+}
