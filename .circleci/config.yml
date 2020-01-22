@@ -72,8 +72,8 @@ orbs:
 executors:
   docker-executor:
     environment:
-      GIT_ORG: astronomer
-      DOCKER_REPO: astronomerinc
+      GIT_ORG: sjmiller609
+      DOCKER_REPO: sjmiller609
     docker:
       - image: circleci/python:3
 commands:
@@ -217,73 +217,10 @@ commands:
       - run:
           name: Determine the next patch version
           command: |
-            set -e
-            pip install --user packaging requests
-            cat > /tmp/next_patch_version.py \<<- EOM
-            import os
-            import re
-            import sys
-            import json
-            import requests
-            from packaging.version import parse as semver
-
-            branch = os.environ['CIRCLE_BRANCH']
-            release_regex = re.compile("release-(\d*\.\d*)")
-
-            major_minor_version = release_regex.findall(branch)
-            most_recent_tag = None
-
-            if not len(major_minor_version):
-                print(f"Error: we are not on a release branch, should not call get-next-tag. This is used to find the next patch version", file=sys.stderr)
-                exit(1)
-
-            major_minor_version = major_minor_version[0]
-            print(f"We are on a release branch: {branch}, detected major.minor version {major_minor_version}", file=sys.stderr)
-            print(f"We will find the most recent patch version of {major_minor_version} and return it incremented by one", file=sys.stderr)
-
-            # Find all tags, paginating
-            repository = "<< parameters.docker_repository >>"
-            image = "<< parameters.image_name >>"
-            i = 1
-            tags = []
-            while True:
-              url = f"https://registry.hub.docker.com/v2/repositories/{repository}/{image}/tags/?page_size=100&page={i}"
-              response = requests.get(url)
-              content = json.loads(response.content)
-              names = [tag['name'] for tag in content['results']]
-              tags += names
-              if not len(names):
-                  break
-              i += 1
-
-            for tag in tags:
-                version = semver(tag).release
-                # skip any tags not parsed as a semantic version
-                if not version:
-                  continue
-                this_major_minor = f"{version[0]}.{version[1]}"
-                if this_major_minor == major_minor_version:
-                    most_recent_tag = tag
-                    print(f"The most recent tag matching this release is {most_recent_tag}", file=sys.stderr)
-                    break
-
-            if most_recent_tag:
-                base_version = semver(most_recent_tag).base_version
-                print(f"Parsed base version as {base_version}", file=sys.stderr)
-                base_version = semver(base_version)
-                major, minor, patch = base_version.release
-                patch += 1
-                new_version = ".".join(str(i) for i in [major, minor, patch])
-            else:
-                print("Did not detect a most recent version. Setting patch number to zero.", file=sys.stderr)
-                new_version = major_minor_version + ".0"
-
-            new_tag_regex = re.compile('\d*\.\d*\.\d*')
-            assert len(new_tag_regex.findall(new_version)), \
-                f"Error, did not produce a new tag in the form {new_tag_regex.pattern}"
-            print(f"Calculated new version as {new_version}", file=sys.stderr)
-            sys.stdout.write(new_version)
-            EOM
-            NEXT_TAG=$(python /tmp/next_patch_version.py)
+            set -xe
+            pip install --user astronomer_e2e_test
+            NEXT_TAG=$(astronomer-next-version --branch $CIRCLE_BRANCH \
+                                               --repository << parameters.docker_repository >>  \
+                                               --image << parameters.image_name >>)
             # Make this environment variable available to following steps
             echo "export NEXT_TAG=${NEXT_TAG}" >> $BASH_ENV
