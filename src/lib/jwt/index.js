@@ -4,7 +4,7 @@ import { getCookieName } from "utilities";
 import jwt from "jsonwebtoken";
 import config from "config";
 import ms from "ms";
-import { memoize } from "lodash";
+import { memoize, partial } from "lodash";
 import path from "path";
 import fs from "fs";
 
@@ -88,7 +88,7 @@ const jwtSigningParam = memoize(() => {
     return { signWith: config.get("jwt.passphrase"), alg: "HS256" };
   }
 
-  return { signWith: getSigningCert().key, alg: "RS256" };
+  return { signWith: getHoustonCertificate().key, alg: "RS256" };
 });
 
 const jwtValidationParam = memoize(() => {
@@ -100,20 +100,34 @@ const jwtValidationParam = memoize(() => {
     return { signWith: config.get("jwt.passphrase"), algs: ["HS256"] };
   }
 
-  return { signWith: getSigningCert().crt, algs: ["RS256"] };
+  return { signWith: getHoustonCertificate().crt, algs: ["RS256"] };
 });
 
 /*
- * Load the JWT signing private key into memory.
- * @return {Object} The contents of the cert and key files.
+ * Load up a certificate at the specified path.
  */
-export const getSigningCert = memoize(function getSigningCert() {
+function loadCertificate(certPath) {
   try {
-    const certPath = config.get("jwt.certPath");
     const crt = fs.readFileSync(path.join(certPath, "tls.crt"));
     const key = fs.readFileSync(path.join(certPath, "tls.key"));
     return { crt, key };
   } catch {
     throw new MissingTLSCertificateError();
   }
-});
+}
+
+/*
+ * Load the Houston JWT signing private key into memory.
+ * @return {Object} The contents of the cert and key files.
+ */
+export const getHoustonCertificate = memoize(
+  partial(loadCertificate, config.get("jwt.certPath"))
+);
+
+/*
+ * Load the Docker Registry JWT signing private key into memory.
+ * @return {Object} The contents of the cert and key files.
+ */
+export const getRegistryCertificate = memoize(
+  partial(loadCertificate, config.get("jwt.registry.certPath"))
+);

@@ -14,8 +14,8 @@ jest.mock("emails");
 
 const query = `
   mutation workspaceRemoveUser(
-    $workspaceUuid: Uuid
-    $userUuid: Uuid
+    $workspaceUuid: Uuid!
+    $userUuid: Uuid!
   ) {
     workspaceRemoveUser(
       workspaceUuid: $workspaceUuid

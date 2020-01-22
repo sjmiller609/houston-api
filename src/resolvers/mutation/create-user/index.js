@@ -4,16 +4,13 @@ import { get } from "lodash";
 import bcrypt from "bcryptjs";
 
 /*
- * Create a new user. This is the singnup mutation.
+ * Create a new user. This is the signup mutation.
  * @param {Object} parent The result of the parent resolver.
  * @param {Object} args The graphql arguments.
  * @param {Object} ctx The graphql context.
  * @return {AuthToken} The auth token.
  */
 export default async function createUser(parent, args, ctx) {
-  // Username can fall back to email.
-  const username = args.username || args.email;
-
   // Full name is sent in on profile and can fall back to empty string.
   const fullName = get(args, "profile.fullName");
 
@@ -25,9 +22,9 @@ export default async function createUser(parent, args, ctx) {
   try {
     // Create the user and nested relations.
     const userId = await _createUser({
-      username,
       fullName,
-      email: args.email,
+      username: args.username,
+      email: args.email.toLowerCase(),
       inviteToken: args.inviteToken
     });
 

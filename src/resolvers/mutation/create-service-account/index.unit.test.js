@@ -17,13 +17,15 @@ const mutation = `
     $label: String!,
     $category: String,
     $entityType: EntityType!,
-    $entityUuid: Uuid
+    $entityUuid: Uuid,
+    $role: Role!
   ) {
     createServiceAccount(
       label: $label,
       category: $category,
       entityType: $entityType,
-      entityUuid: $entityUuid
+      entityUuid: $entityUuid,
+      role: $role
     ) {
       id
       label
@@ -68,7 +70,8 @@ describe("createServiceAccount", () => {
       label: casual.word,
       category: casual.word,
       entityType: ENTITY_WORKSPACE,
-      entityUuid: workspaceId
+      entityUuid: workspaceId,
+      role: WORKSPACE_ADMIN
     };
 
     // Run the graphql mutation.
@@ -104,7 +107,8 @@ describe("createServiceAccount", () => {
       label: casual.word,
       category: casual.word,
       entityType: ENTITY_WORKSPACE,
-      entityUuid: casual.uuid
+      entityUuid: casual.uuid,
+      role: WORKSPACE_ADMIN
     };
 
     // Run the graphql mutation.

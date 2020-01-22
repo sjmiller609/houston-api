@@ -25,7 +25,11 @@ export default async function logs(parent, args, ctx) {
   if (!res) return [];
 
   // Get the results and transform them before returning.
-  const hits = get(res, "hits.hits", []);
+  // We reverse the results here because we're sorting in
+  // decending order in our ES query to ensure we're getting
+  // the latest chunk of records if the result set is larger than our
+  // size parameter.
+  const hits = get(res, "hits.hits", []).reverse();
   log.debug(`Got ${hits.length} hits in search query`);
 
   return hits.map(formatLogDocument);

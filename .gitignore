@@ -3,3 +3,7 @@ coverage
 dist
 node_modules
 config/local.yaml
+src/lib/generated/
+docker-compose.override.yml
+
+telepresence.log

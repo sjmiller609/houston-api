@@ -8,20 +8,21 @@ enum Role {
   DEPLOYMENT_ADMIN
   DEPLOYMENT_EDITOR
   DEPLOYMENT_VIEWER
+  USER
 }
 
 type User {
-  id: ID! @unique
+  id: ID! @id
   username: String @unique
   status: String
   fullName: String
   avatarUrl: String
-  emails: [Email!]!
-  roleBindings: [RoleBinding!]!
-  localCredential: LocalCredential
-  oauthCredentials: [OAuthCredential!]!
-  createdAt: DateTime!
-  updatedAt: DateTime!
+  emails: [Email!]! @relation(name: "EmailToUser", onDelete: CASCADE)
+  roleBindings: [RoleBinding!]! @relation(name: "RoleBindingToUser", onDelete: CASCADE)
+  localCredential: LocalCredential @relation(name: "LocalCredentialToUser", onDelete: CASCADE, link: INLINE)
+  oauthCredentials: [OAuthCredential!]! @relation(name: "OAuthCredentialToUser", onDelete: CASCADE)
+  createdAt: DateTime! @createdAt
+  updatedAt: DateTime! @updatedAt
 }
 
 # Ideally this type uses a union type once prisma supports it.
@@ -29,75 +30,89 @@ type User {
 # principal: Workspace | Deployment
 # https://github.com/prisma/prisma/issues/165
 type RoleBinding {
-  id: ID! @unique
+  id: ID! @id
   role: Role
-  user: User
-  serviceAccount: ServiceAccount
-  workspace: Workspace
-  deployment: Deployment
+  user: User @relation(name: "RoleBindingToUser")
+  serviceAccount: ServiceAccount @relation(name: "RoleBindingToServiceAccount", link: INLINE)
+  workspace: Workspace @relation(name: "RoleBindingToWorkspace")
+  deployment: Deployment @relation(name: "DeploymentRoleBindings")
+  createdAt: DateTime! @createdAt
+  updatedAt: DateTime! @updatedAt
 }
 
 type Email {
-  id: ID! @unique
+  id: ID! @id
   address: String @unique
   primary: Boolean
   token: String @unique
-  user: User
+  user: User @relation(name: "EmailToUser")
   verified: Boolean
+  createdAt: DateTime! @createdAt
+  updatedAt: DateTime! @updatedAt
 }
 
 type LocalCredential {
-  id: ID! @unique
-  user: User
+  id: ID! @id
+  user: User @relation(name: "LocalCredentialToUser")
   password: String
   resetToken: String @unique
+  createdAt: DateTime! @createdAt
+  updatedAt: DateTime! @updatedAt
 }
 
 type OAuthCredential {
-  id: ID! @unique
+  id: ID! @id
   expiresAt: DateTime
   oauthProvider: String!
   oauthUserId: String!
-  user: User
+  user: User @relation(name: "OAuthCredentialToUser")
+  createdAt: DateTime! @createdAt
+  updatedAt: DateTime! @updatedAt
 }
 
 type InviteToken {
   # Multi-column unique fields would be nice, but not supported yet
   # https://github.com/prisma/prisma/issues/3405
-  id: ID! @unique
+  id: ID! @id
   email: String!
   token: String! @unique
-  workspace: Workspace!
-  createdAt: DateTime!
-  updatedAt: DateTime!
+
+  # Optional. If one is specified both should be
+  workspace: Workspace
+  role: Role
+
+  createdAt: DateTime! @createdAt
+  updatedAt: DateTime! @updatedAt
 }
 
 type ServiceAccount {
-  id: ID! @unique
+  id: ID! @id
   apiKey: String @unique
   label: String
   category: String
   active: Boolean
-  roleBinding: RoleBinding
+  roleBinding: RoleBinding @relation(name: "RoleBindingToServiceAccount", onDelete: CASCADE)
   lastUsedAt: DateTime
-  createdAt: DateTime!
-  updatedAt: DateTime!
+  createdAt: DateTime! @createdAt
+  updatedAt: DateTime! @updatedAt
 }
 
 type Workspace {
-  id: ID! @unique
-  active: Boolean
+  id: ID! @id
   deployments: [Deployment!]!
   description: String
   invites: [InviteToken!]!
   label: String
-  roleBindings: [RoleBinding!]!
-  createdAt: DateTime!
-  updatedAt: DateTime!
+  roleBindings: [RoleBinding!]! @relation(name: "RoleBindingToWorkspace", onDelete: CASCADE)
+  stripeCustomerId: String
+  createdAt: DateTime! @createdAt
+  updatedAt: DateTime! @updatedAt
+  isSuspended: Boolean
+  trialEndsAt: DateTime
 }
 
 type Deployment {
-  id: ID! @unique
+  id: ID! @id
   config: Json
   description: String
   label: String
@@ -107,8 +122,25 @@ type Deployment {
   version: String
   extraAu: Int
   airflowVersion: String
-  alertEmails: [String!]
+  alertEmails: [String!] @scalarList(strategy: RELATION)
+  roleBindings: [RoleBinding!]! @relation(name: "DeploymentRoleBindings", onDelete: CASCADE)
   workspace: Workspace
-  createdAt: DateTime!
-  updatedAt: DateTime!
+  createdAt: DateTime! @createdAt
+  updatedAt: DateTime! @updatedAt
+  deletedAt: DateTime
+  images: [DockerImage!] @relation(name: "DeploymentDockerImages", onDelete: CASCADE)
+  canary: Boolean
+}
+
+type DockerImage {
+  id: ID! @id
+  # Even though we only "need" the tag, to make it a unique string that we can
+  # create/update by we include repository in this too.
+  name: String @unique
+  labels: Json!
+  env: Json!
+  tag: String!
+  digest: String!
+  deployment: Deployment! @relation(name: "DeploymentDockerImages")
+  createdAt: DateTime! @createdAt
 }

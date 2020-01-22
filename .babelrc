@@ -19,7 +19,8 @@
         "alias": {
             "commander-proto": "commander",
             "resolvers": "./src/resolvers",
-            "routes": "./src/routes"
+            "routes": "./src/routes",
+            "stripe-api": "stripe"
         }
       }
     ]

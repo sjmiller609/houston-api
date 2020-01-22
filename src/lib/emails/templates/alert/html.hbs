@@ -16,7 +16,7 @@
       <td style="padding: 0; font-weight: 300; margin: 0; text-align: center">
         <div class="header" style="padding: 23px 0; font-size: 14px; font-weight: 300; border-bottom: 1px solid #dee7eb">
           <div class="container" style="padding: 0 20px; max-width: 600px; font-weight: 300; margin: 0 auto; text-align: left">
-            <a href="{{ orbitUrl }}/deployments/{{ alert.labels.deployment }}" class="btn" style="border-radius: 4px; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.08); color: #fff; float: right; font-size: 16px; padding: 8px 15px; text-decoration: none; border: 1px solid #09acc6; display: inline-block; font-weight: 600; margin: -3px 0 0; line-height: 18px; background-color: #09acc6">View on Astronomer</a>
+            <a href="{{ orbitUrl }}/{{ alert.labels.workspace }}/deployments/{{ alert.labels.deployment }}" class="btn" style="border-radius: 4px; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.08); color: #fff; float: right; font-size: 16px; padding: 8px 15px; text-decoration: none; border: 1px solid #09acc6; display: inline-block; font-weight: 600; margin: -3px 0 0; line-height: 18px; background-color: #09acc6">View on Astronomer</a>
             <h1 style="font-size: 38px; color: #000; letter-spacing: -1px; padding: 0; font-weight: normal; margin: 0; line-height: 42px">
               <a href="https://astronomer.io" style="color: #4674ca; font-weight: 500; text-decoration: none"><img src="https://cdn.astronomer.io/app/img/Logo_BigStarsLightBg.png" height="40px" alt="Astronomer" style="font-weight: 300"></a>
             </h1>
@@ -29,7 +29,7 @@
         <div class="container" style="padding: 0 20px; max-width: 600px; font-weight: 300; margin: 0 auto; text-align: left">
           <div class="inner" style="padding: 30px 0 20px; font-weight: 300; background-color: #fff">
             <h2 style="font-size: 22px; font-weight: 700; margin: 0 0 15px">
-              New alert from <a href="{{ orbitUrl }}/deployments/{{ alert.labels.deployment }}" style="color: #4674ca; font-weight: inherit; text-decoration: none">{{ alert.labels.deployment }}</a>
+              New alert from <a href="{{ orbitUrl }}/{{ alert.labels.workspace }}/deployments/{{ alert.labels.deployment }}" style="color: #4674ca; font-weight: inherit; text-decoration: none">{{ alert.labels.deployment }}</a>
             </h2>
             <table class="event-list" style="border-collapse: collapse; width: 100%; font-weight: 300; margin: 0 0 15px; text-align: left">
               <tr style="font-weight: 300">
@@ -47,7 +47,7 @@
                   <div class="issue" style="font-weight: 300; line-height: 22px">
                     <div class="event-type error" style="font-weight: 300">
                       <h3 style="font-size: 18px; font-weight: 700; line-height: 22px; margin: 0">
-                        <a href="{{ orbitUrl }}/deployments/{{ alert.labels.deployment }}" style="color: #4674ca; font-size: 16px; font-weight: 600; text-decoration: none; margin-right: 10px">Alert</a>
+                        <a href="{{ orbitUrl }}/{{ alert.labels.workspace }}/deployments/{{ alert.labels.deployment }}" style="color: #4674ca; font-size: 16px; font-weight: 600; text-decoration: none; margin-right: 10px">Alert</a>
                         <br style="font-weight: 300">
                         <small style="color: #968ba0; font-size: 14px; font-weight: 300">{{ alert.annotations.summary }}</small>
                       </h3>
@@ -82,9 +82,9 @@
         <div class="container" style="padding: 0 20px; max-width: 600px; font-weight: 300; margin: 0 auto; text-align: left">
           <div class="footer" style="padding: 35px 0; border-top: 1px solid #E7EBEE; font-weight: 300">
             <a href="https://astronomer.io" style="color: #687276; float: right; font-weight: 500; text-decoration: none">Home</a>
-            <a href="{{ orbitUrl }}/deployments/{{ alert.labels.deployment }}" style="color: #687276; font-weight: 500; text-decoration: none">Notification Settings</a>
+            <a href="{{ orbitUrl }}/{{ alert.labels.workspace }}/deployments/{{ alert.labels.deployment }}" style="color: #687276; font-weight: 500; text-decoration: none">Notification Settings</a>
             &#183;
-            <a href="{{ orbitUrl }}/deployments/{{ alert.labels.deployment }}" style="color: #687276; font-weight: 500; text-decoration: none">Unsubscribe</a>
+            <a href="{{ orbitUrl }}/{{ alert.labels.workspace }}/deployments/{{ alert.labels.deployment }}" style="color: #687276; font-weight: 500; text-decoration: none">Unsubscribe</a>
           </div>
         </div>
       </td>

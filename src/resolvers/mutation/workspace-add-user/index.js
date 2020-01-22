@@ -2,9 +2,10 @@ import fragment from "./fragment";
 import { UserInviteExistsError } from "errors";
 import { orbit } from "utilities";
 import { sendEmail } from "emails";
+import { UserInputError } from "apollo-server";
 import shortid from "shortid";
 import { addFragmentToInfo } from "graphql-binding";
-import { WORKSPACE_ADMIN } from "constants";
+import { ENTITY_WORKSPACE } from "constants";
 
 /*
  * Add a user to a workspace.
@@ -16,12 +17,16 @@ import { WORKSPACE_ADMIN } from "constants";
 export default async function workspaceAddUser(parent, args, ctx, info) {
   // Pull out some args.
   const { email, workspaceUuid } = args;
+  let { role } = args;
 
   // Check for user by incoming email arg.
   const emailRow = await ctx.db.query.email(
-    { where: { address: email } },
+    { where: { address: email.toLowerCase() } },
     `{ user { id } }`
   );
+
+  if (!role.startsWith(`${ENTITY_WORKSPACE}_`))
+    throw new UserInputError("invalid workspace role");
 
   const user = emailRow ? emailRow.user : null;
 
@@ -29,7 +34,7 @@ export default async function workspaceAddUser(parent, args, ctx, info) {
   if (user) {
     await ctx.db.mutation.createRoleBinding({
       data: {
-        role: WORKSPACE_ADMIN,
+        role,
         user: { connect: { id: user.id } },
         workspace: { connect: { id: workspaceUuid } }
       }
@@ -38,7 +43,10 @@ export default async function workspaceAddUser(parent, args, ctx, info) {
     // Check if we have an invite for incoming email and user.
     const existingInvites = await ctx.db.query.inviteTokensConnection(
       {
-        where: { email, workspace: { id: workspaceUuid } }
+        where: {
+          email: email.toLowerCase(),
+          workspace: { id: workspaceUuid }
+        }
       },
       `{ aggregate { count } }`
     );
@@ -51,8 +59,9 @@ export default async function workspaceAddUser(parent, args, ctx, info) {
     const res = await ctx.db.mutation.createInviteToken(
       {
         data: {
-          email,
+          email: email.toLowerCase(),
           token,
+          role,
           workspace: { connect: { id: workspaceUuid } }
         }
       },

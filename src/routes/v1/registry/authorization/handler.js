@@ -1,9 +1,16 @@
 import { prisma } from "generated/client";
-import { hasPermission, getAuthUser } from "rbac";
+
+import {
+  hasPermission,
+  getAuthUser,
+  accesibleDeploymentsWithPermission
+} from "rbac";
 import log from "logger";
 import { createDockerJWT } from "registry/jwt";
 import validateDeploymentCredentials from "deployments/validate/authorization";
-import { compact, first, isArray } from "lodash";
+import { ACTIONS, VALID_RELEASE_NAME } from "deployments/validate/docker-tag";
+import config from "config";
+import { compact, isArray, find, includes } from "lodash";
 import { ENTITY_DEPLOYMENT } from "constants";
 
 // List of expected registry codes.
@@ -22,17 +29,29 @@ export default async function(req, res) {
   log.info("Processing registry authorization");
 
   // If we don't have an original URL, it's a mistake. Can't proceed.
-  const originalUri = req.get("x-original-uri");
-  if (!originalUri) {
-    return sendError(
-      res,
-      REGISTRY_CODES.UNKNOWN,
-      "Unknown registry service request"
-    );
+  if (process.env.NODE_ENV === "production") {
+    const originalUri = req.get("x-original-uri");
+    if (!originalUri) {
+      return sendError(
+        res,
+        REGISTRY_CODES.UNKNOWN,
+        "Unknown registry service request"
+      );
+    }
   }
 
   // Get the authorization header, fail if not found.
   const authorization = req.get("authorization");
+
+  if (!authorization) {
+    return sendError(
+      res,
+      REGISTRY_CODES.UNAUTHORIZED,
+      "No authorization credentials specified",
+      403
+    );
+  }
+
   if (!authorization || authorization.substr(0, 5) !== "Basic") {
     return sendError(
       res,
@@ -47,8 +66,9 @@ export default async function(req, res) {
     .toString()
     .split(":");
 
-  // Determine if this is a user triggered action, or from a running deployment.
-  const isDeployment = await validateDeploymentCredentials(
+  // Determine if this is a user triggered action, or from a running deployment
+  // (i.e. the ImagePullSecret passed in to Helm).
+  const isDeploymentAuth = await validateDeploymentCredentials(
     authUser,
     authPassword,
     "registryPassword"
@@ -56,8 +76,10 @@ export default async function(req, res) {
 
   // Look up the requesting User or Service Account.
   const user = await getAuthUser(authPassword);
-  const userId = isDeployment ? "registry" : user ? user.id : null;
+  const userId = isDeploymentAuth ? "registry" : user ? user.id : null;
   if (!userId) return sendError(res, REGISTRY_CODES.DENIED, "Access denied");
+
+  const baseImages = config.get("jwt.registry.baseImages");
 
   // JWT response payload.
   const payload = [];
@@ -69,42 +91,94 @@ export default async function(req, res) {
   // It will exist for a code push (docker push) and when deployment pods
   // pull the image (docker pull).
   if (scope) {
-    const { type, releaseName, image, actions } = first(
-      compact((isArray(scope) ? scope : [scope]).map(parseScope))
-    );
+    for (let parsed of compact(
+      (isArray(scope) ? scope : [scope]).map(parseScope)
+    )) {
+      const isPushAction = includes(parsed.actions, ACTIONS.PUSH);
+      if (includes(baseImages, parsed.name)) {
+        // Only sys admins can push to the base images, but anyone can pull from them
+        if (isPushAction) {
+          const allowed = hasPermission(user, "system.registryBaseImages.push");
 
-    if (!releaseName) {
-      return sendError(
-        res,
-        REGISTRY_CODES.UNKNOWN,
-        "Unknown scope, cannot determine repository or image"
-      );
+          if (!allowed) {
+            return sendError(
+              res,
+              REGISTRY_CODES.DENIED,
+              `You do not have permission to manage ${parsed.name}`
+            );
+          }
+        }
+      } else {
+        const releaseName = releaseNameFromImage(parsed.name);
+
+        if (!releaseName) {
+          return sendError(
+            res,
+            REGISTRY_CODES.UNKNOWN,
+            "Unknown scope, cannot determine repository or image"
+          );
+        }
+
+        // This path is for a code push.
+        if (!isDeploymentAuth) {
+          // Look up deploymentId by releaseName.
+          const deploymentId = await prisma.deployment({ releaseName }).id();
+
+          // Check if the User or Service Account has permission to update this deployment.
+          const permission = isPushAction
+            ? "deployment.images.push"
+            : "deployment.images.pull";
+          const allowed = hasPermission(
+            user,
+            permission,
+            ENTITY_DEPLOYMENT.toLowerCase(),
+            deploymentId
+          );
+
+          if (!allowed) {
+            return sendError(
+              res,
+              REGISTRY_CODES.DENIED,
+              `You do not have ${permission} permission on ${releaseName}`
+            );
+          }
+        }
+      }
+
+      payload.push(parsed);
     }
+  }
 
-    // This path is for a code push.
-    if (!isDeployment) {
-      // Look up deploymentId by releaseName.
-      const deploymentId = await prisma.deployment({ releaseName }).id();
+  // Add in PULL permission to the base images - this lets us "mount"/share
+  // layers from that to speed up pushes
+  for (let name of config.get("jwt.registry.baseImages")) {
+    if (!find(payload, _ => _.name == name)) {
+      payload.push({ type: "repository", actions: [ACTIONS.PULL], name });
+    }
+  }
 
-      // Check if the User or Service Account has permission to update this deployment.
-      const allowed = hasPermission(
-        user,
-        "deployment.images.push",
-        ENTITY_DEPLOYMENT.toLowerCase(),
-        deploymentId
-      );
-
-      // If not allowed, return access denied message.
-      if (!allowed) {
-        return sendError(
-          res,
-          REGISTRY_CODES.DENIED,
-          `You do not have permission to manage ${releaseName}`
-        );
+  // And add in PULL permissions to all the other deployments this user has
+  // access to. This is so that if the user retags an image (i.e. "promote"
+  // from staging to production) the image can be already there and the push
+  // will be almost instant.
+  const otherReleaseIds = accesibleDeploymentsWithPermission(
+    user,
+    "deployment.images.pull"
+  );
+  if (otherReleaseIds.length > 0) {
+    const otherReleaseNames = await prisma
+      .deployments({
+        where: {
+          id_in: otherReleaseIds
+        }
+      })
+      .releaseName();
+    for (let name of otherReleaseNames.map(_ => _.releaseName)) {
+      name = `${name}/airflow`;
+      if (!find(payload, _ => _.name == name)) {
+        payload.push({ type: "repository", actions: [ACTIONS.PULL], name });
       }
     }
-
-    payload.push({ type, actions, name: `${releaseName}/${image}` });
   }
 
   // Create and respond with the JWT.
@@ -117,48 +191,31 @@ export default async function(req, res) {
   });
 }
 
+const SCOPE_REGEX = /^(?<type>repository):(?<name>[^:]+):(?<actions>[a-z,]+)$/;
+
 /*
  * Parse a scope query string parameter from the registry.
  * @param {String} scope The user scope.
  * @return {Object} The parsed information.
  */
 export function parseScope(scope) {
-  const matches = scope.match(
-    /(repository):([a-z]+-[a-z]+-[0-9]{0,4})\/(airflow):([a-z,]+)/
-  );
+  const matches = SCOPE_REGEX.exec(scope);
   if (matches) {
-    return {
-      type: matches[1],
-      releaseName: matches[2],
-      image: matches[3],
-      actions: matches[4].split(",")
-    };
+    // Comma separate actions
+    matches.groups.actions = matches.groups.actions.split(",");
+    return matches.groups;
   }
+  return {};
 }
 
 /*
- * Check if token is legit.
- * @param {String} token The authorization token.
+ * Parse an (and validate) releaseName from image
+ * @param {String} scope The user scope.
  */
-// export async function isRegistryAuth(token) {
-//   if (isPlatformRegistryAuth(token)) {
-//     log.info("Platform registry auth");
-//     return true;
-//   }
-//   if (await isDeploymentRegistryAuth(token)) {
-//     log.info("Deployment registry auth");
-//     return true;
-//   }
-// }
-
-/*
- * Check if token is a platform token.
- * @param {String} token The authorization token.
- */
-// export function isPlatformRegistryAuth(token) {
-//   const registryAuth = config.get("registry.auth");
-//   return !!find(registryAuth.auths, value => value.auth === token);
-// }
+export function releaseNameFromImage(image) {
+  const matches = VALID_RELEASE_NAME.exec(image);
+  if (matches) return matches.groups.releaseName;
+}
 
 /*
  * Send correctly formatted error response back to registry.
@@ -166,16 +223,19 @@ export function parseScope(scope) {
  * @param {String} code The error code
  * @param {String} message The error message
  */
-export function sendError(res, code, message) {
-  return res.status(401).end(
-    JSON.stringify({
-      errors: [
-        {
-          code,
-          message,
-          details: []
-        }
-      ]
-    })
-  );
+export function sendError(res, code, message, http_err) {
+  return res
+    .status(http_err || 401)
+    .set("Content-Type", "application/json")
+    .end(
+      JSON.stringify({
+        errors: [
+          {
+            code,
+            message,
+            details: []
+          }
+        ]
+      })
+    );
 }

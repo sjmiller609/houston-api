@@ -10,12 +10,25 @@ prisma:
     __name: "PRISMA__DEBUG"
     __format: "json"
 
+database:
+  migrations:
+    tableName: "DATABASE__MIGRATIONS__TABLE_NAME"
+    schemaName: "DATABASE__MIGRATIONS__SCHEMA_NAME"
+    disableTransactions:
+      __name: "DATABASE__MIGRATIONS__DISABLE_TRANSACTIONS"
+      __format: "json"
+  connection: "DATABASE__CONNECTION"
+
 commander:
   enabled:
     __name: "COMMANDER__ENABLED"
     __format: "json"
   host: "COMMANDER__HOST"
   port: "COMMANDER__PORT"
+
+registry:
+  host: "REGISTRY__HOST"
+  port: "REGISTRY__PORT"
 
 elasticsearch:
   enabled:
@@ -28,6 +41,14 @@ elasticsearch:
     __name: "ELASTICSEARCH__MOCK_IN_DEVELOPMENT"
     __format: "json"
 
+prometheus:
+  enabled:
+    __name: "PROMETHEUS__ENABLED"
+    __format: "json"
+  host: "PROMETHEUS__HOST"
+  port: "PROMETHEUS__PORT"
+  pollInterval: "PROMETHEUS__POLL_INTERVAL"
+
 email:
   enabled:
     __name: "EMAIL__ENABLED"
@@ -37,6 +58,12 @@ email:
     __format: "json"
   reply: "EMAIL__REPLY"
   smtpUrl: "EMAIL__SMTP_URL"
+
+stripe:
+  enabled:
+    __name: "STRIPE__ENABLED"
+    __format: "json"
+  secretKey: "STRIPE__SECRET_KEY"
 
 repository: "REPOSITORY"
 
@@ -61,17 +88,36 @@ auth:
     enabled:
       __name: "AUTH__LOCAL__ENABLED"
       __format: "json"
-  auth0:
-    enabled:
-      __name: "AUTH__AUTH0__ENABLED"
+
+  openidConnect:
+    clockTolerance:
+      __name: "AUTH__OPENID_CONNECT__CLOCK_TOLERANCE"
       __format: "json"
-    clientId: "AUTH__AUTH0__CLIENT_ID"
-    baseDomain: "AUTH__AUTH0__BASE_DOMAIN"
-  google:
-    enabled:
-      __name: "AUTH__GOOGLE__ENABLED"
-      __format: "json"
-    clientId: "AUTH__GOOGLE__CLIENT_ID"
+    # A single JSON string of all the OIDC providers to use. If this env var is
+    # set then the convinence settings below will be ignored.
+    __name: "AUTH__OPENID_CONNECT_PROVIDERS"
+    __format: "json"
+    auth0:
+      enabled:
+        __name: "AUTH__OPENID_CONNECT__AUTH0__ENABLED"
+        __format: "json"
+      clientId: "AUTH__OPENID_CONNECT__AUTH0__CLIENT_ID"
+      discoveryUrl: "AUTH__OPENID_CONNECT__AUTH0__DISCOVERY_URL"
+
+    google:
+      enabled:
+        __name: "AUTH__OPENID_CONNECT__GOOGLE__ENABLED"
+        __format: "json"
+      clientId: "AUTH__OPENID_CONNECT__GOOGLE__CLIENT_ID"
+      discoveryUrl: "AUTH__OPENID_CONNECT__GOOGLE__DISCOVERY_URL"
+
+    okta:
+      enabled:
+        __name: "AUTH__OPENID_CONNECT__OKTA__ENABLED"
+        __format: "json"
+      clientId: "AUTH__OPENID_CONNECT__OKTA__CLIENT_ID"
+      discoveryUrl: "AUTH__OPENID_CONNECT__OKTA__DISCOVERY_URL"
+
   github:
     enabled:
       __name: "AUTH__GITHUB__ENABLED"
@@ -83,8 +129,12 @@ jwt:
   authDuration: "JWT__AUTH_DURATION"
 
   registry:
+    certPath: "JWT__REGISTRY__CERT_PATH"
     issuer: "JWT__REGISTRY__ISSUER"
     service: "JWT__REGISTRY__SERVICE"
+    baseImages:
+      __name: "JWT__REGISTRY__BASE_IMAGES"
+      __format: "json"
 
 publicSignups:
   __name: "PUBLIC_SIGNUPS"
@@ -100,12 +150,12 @@ deployments:
     __format: "json"
   database:
     enabled:
-      __name: "DEPLOYMENTS__DATBASE__ENABLED"
+      __name: "DEPLOYMENTS__DATABASE__ENABLED"
       __format: "json"
     retainOnDelete:
-      __name: "DEPLOYMENTS__DATBASE__RETAIN_ON_DELETE"
+      __name: "DEPLOYMENTS__DATABASE__RETAIN_ON_DELETE"
       __format: "json"
     allowRootAccess:
-      __name: "DEPLOYMENTS__DATBASE__ALLOW_ROOT_ACCES"
+      __name: "DEPLOYMENTS__DATABASE__ALLOW_ROOT_ACCESS"
       __format: "json"
     connection: "DEPLOYMENTS__DATABASE__CONNECTION"

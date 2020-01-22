@@ -18,7 +18,7 @@ import shortid from "shortid";
 export default async function forgotPassword(parent, args, ctx) {
   // Check for user by incoming email arg.
   const email = await ctx.db.query.email(
-    { where: { address: args.email } },
+    { where: { address: args.email.toLowerCase() } },
     `{
       address
       user {

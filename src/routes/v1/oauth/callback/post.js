@@ -1,42 +1,61 @@
 import fragment from "./fragment";
-import { createUser as _createUser } from "users";
-import { getProvider } from "oauth/config";
+import { createUser as _createUser, isFirst } from "users";
+import { getClient } from "oauth/config";
+import { PublicSignupsDisabledError } from "errors";
 import { orbit } from "utilities";
 import { prisma } from "generated/client";
 import { createAuthJWT, setJWTCookie } from "jwt";
-import { first } from "lodash";
-import querystring from "querystring";
+import config from "config";
+import { first, merge } from "lodash";
+import { URLSearchParams } from "url";
 
 /*
  * Handle oauth request.
  * @param {Object} req The request.
  * @param {Object} res The response.
  */
-export default async function(req, res) {
+export default async function(req, res, next) {
   // Grab params out of the request body.
-  const {
-    id_token: idToken,
-    expires_in: expiration,
-    state: rawState
-  } = req.body;
+  const { state: rawState } = req.body;
+  const firstUser = await isFirst();
+  const publicSignups = config.get("publicSignups");
+
+  // TODO: Handle `error` in the response
 
   // Parse the state object.
   const state = JSON.parse(decodeURIComponent(rawState));
 
   // Get the provider module.
-  const provider = getProvider(state.provider);
+  const provider = await getClient(state.provider);
 
-  // Create a token.
-  const data = {
-    encodedJWT: idToken,
-    expires: provider.expires(expiration)
-  };
-
-  // Validate the token.
-  const jwt = await provider.validate(data);
+  const tokenSet = await provider.authorizationCallback(null, req.body, {
+    state: rawState,
+    // Don't validate the nonce. Not great, but we don't store the nonce in a
+    // session right now, so we can't validate this
+    nonce: null
+  });
 
   // Grab user data
-  const { providerUserId, email, fullName, avatarUrl } = provider.userData(jwt);
+  // Some IDPs don't return useful info, so fall back to the claims if we don't have it
+  const userData = merge(await provider.userinfo(tokenSet.access_token), {
+    email:
+      tokenSet.claims.email.toLowerCase() ||
+      tokenSet.claims.preferred_username.toLowerCase(),
+    sub: tokenSet.claims.sub,
+    name: tokenSet.claims.name || tokenSet.claims.unique_name
+  });
+
+  const {
+    sub: providerUserId,
+    email,
+    name: fullName,
+    picture: avatarUrl
+  } = userData;
+
+  if (!email) {
+    // Somehow we got no email! Abort
+    return next("No email from userinfo!");
+  }
 
   // Search for user in our system using email address.
   const user = first(
@@ -49,7 +68,6 @@ export default async function(req, res) {
   const userId = user
     ? user.id
     : await _createUser({
-        username: email,
         fullName,
         email,
         inviteToken: state.inviteToken,
@@ -62,6 +80,11 @@ export default async function(req, res) {
       where: { id: userId },
       data: { fullName, avatarUrl }
     });
+  }
+
+  // If the user does not exist and public signups are disabled, throw an error
+  if (!user && !publicSignups && !firstUser && !state.inviteToken) {
+    throw new PublicSignupsDisabledError();
   }
 
   // If we just created the user, also create and connect the oauth cred.
@@ -79,15 +102,18 @@ export default async function(req, res) {
   // Set the cookie.
   setJWTCookie(res, token);
 
+  // Add userId and email for in-app tracking
+  state.extras = { ...state.extras, userId, email };
+
   // Build redirect query string.
-  const qs = querystring.stringify({
-    extras: JSON.stringify(state.extras),
-    strategy: state.provider,
-    token
-  });
+  const qs = new URLSearchParams([
+    ["extras", JSON.stringify(state.extras)],
+    ["strategy", state.provider],
+    ["token", token]
+  ]);
 
   // Respond with redirect to orbit.
-  const url = `${orbit()}/${state.redirect}?${qs}`;
+  const url = `${orbit()}/${state.redirect || "oauth"}?${qs}`;
   const cleanUrl = url.replace(/([^:]\/)\/+/g, "$1");
   res.redirect(cleanUrl);
 }

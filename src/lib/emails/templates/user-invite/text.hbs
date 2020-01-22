@@ -1,5 +1,9 @@
 {{#extend "layout-text"}}{{#content "body"~}}
+{{~#if workspaceLabel ~}}
 You have been invited to {{ workspaceLabel }} on Astronomer
+{{ else~}}
+You have been invited to the Astronomer platform.
+{{/if}}
 
 Please follow the link below to verify your ownership of this email address:
 

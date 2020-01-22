@@ -12,13 +12,19 @@ commander:
 # This is where the airflow chart is installed from.
 repository: "https://helm.astronomer.io/"
 
+# Test that we can disable a specific permission in an override
+roles:
+  SYSTEM_VIEWER:
+    permissions:
+      system.monitoring.get: false
+
 # Helm configuration.
 # These values are set at runtime and used for airflow deployments.
 helm:
   baseDomain: astronomer.io
   acme: ~
   rbacEnabled: ~
-  releaseName: ~
+  releaseName: astronomer
   releaseNamespace: ~
   releaseVersion: ~
 
@@ -28,17 +34,27 @@ auth:
   local:
     enabled: true
 
-  # Auth0 integration configuration.
-  auth0:
-    enabled: true
-    clientId: ~
-    baseDomain: ~
-    externalLogin: ~
+  openidConnect:
+    # Auth0 integration configuration.
+    auth0:
+      # This "enabled" flag is currently a little misleading.
+      # The enabled flag refers only to showing the native
+      # Auth0 button in the UI. The rest of the settings here
+      # could potentially be used as to auth with Google/Github/etc
+      # if those integrations are enabled, but do not have connection
+      # information.
+      enabled: true
+      clientId: ~
+      discoveryUrl: https://astronomerio.auth0.com
+      authUrlParams:
+        audience: "astronomer-ee"
 
-  # Direct oauth integration to google.
-  google:
-    enabled: true
-    clientId: ~
+    # Direct oauth integration to google.
+    google:
+      displayName: Google
+      enabled: true
+      clientId: ~
+      discoveryUrl: "https://accounts.google.com/"
 
   # Direct oauth integration to github (WIP).
   github:
@@ -51,8 +67,25 @@ jwt:
   # JWT / Cookie duration in milliseconds.
   authDuration: 86400000
   certPath: ./test-data/certs/
+  registry:
+    certPath: ./test-data/certs/
 
 # Deployment configuration.
 deployments:
   database:
     enabled: false
+
+  images:
+    - version: 1.10.4
+      channel: stable
+      tag: 1.10.4-alpine3.10-onbuild
+    - version: 1.10.5
+      channel: stable
+      tag: 1.10.5-alpine3.10-onbuild
+    - version: 1.10.6
+      channel: edge
+      tag: 1.10.6-alpine3.10-onbuild
+
+# Stripe configuration.
+stripe:
+  enabled: true

@@ -1,4 +1,4 @@
-export default `fragment EnsureFields on Deployment {
+export const deploymentFragment = `fragment EnsureFields on Deployment {
   id
   config
   releaseName
@@ -6,4 +6,11 @@ export default `fragment EnsureFields on Deployment {
   extraAu
   airflowVersion
   alertEmails
+  workspace { id }
+}`;
+
+export const workspaceFragment = `{
+  stripeCustomerId
+  isSuspended
+  deployments {id, deletedAt}
 }`;

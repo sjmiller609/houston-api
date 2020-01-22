@@ -1,7 +1,7 @@
-import { DEFAULT_NEXT_IMAGE_TAG } from "constants";
+import { generateDefaultTag } from "deployments/config";
 
 export function next(parent) {
-  return parent.next || DEFAULT_NEXT_IMAGE_TAG;
+  return parent.next || generateDefaultTag();
 }
 
 export default { next };

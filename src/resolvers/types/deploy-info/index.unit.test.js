@@ -2,10 +2,10 @@ import { next } from "./index";
 
 describe("next", () => {
   test("returns a default value if parent is empty", () => {
-    expect(next({})).toBe("cli-1");
+    expect(next({})).toBe("deploy-1");
   });
 
   test("returns value if parent has it", () => {
-    expect(next({ next: "cli-2" })).toBe("cli-2");
+    expect(next({ next: "deploy-2" })).toBe("deploy-2");
   });
 });

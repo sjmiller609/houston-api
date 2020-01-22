@@ -25,8 +25,9 @@
         var params = location.hash.replace('#', '').split("&");
         for(var i = 0; i < params.length; i++) {
           var parts = params[i].split("=");
+          parts[1] = decodeURIComponent(parts[1]);
           if (parts[0] === "state") {
-            var state = JSON.parse(decodeURIComponent(parts[1]));
+            var state = JSON.parse(parts[1]);
             origin = state.origin;
           }
           addHiddenField(form, parts[0], parts[1]);

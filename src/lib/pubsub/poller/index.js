@@ -26,7 +26,10 @@ export default function createPoller(
   // Wrap the publish function on the pubsub object, pre-populating the topic.
   const publish = bind(curry(pubsub.publish, 2)(topic), pubsub);
 
-  // Set up a timer to call the passed function. This is the poller.
+  // Call the function once to get initial dataset.
+  func(publish);
+
+  // Then set up a timer to call the passed function. This is the poller.
   const poll = setInterval(partial(func, publish), interval);
 
   // If we are passed a timeout, kill subscription after that interval has passed.
@@ -35,13 +38,17 @@ export default function createPoller(
   // Create a typical async iterator, but overwrite the return function
   // and cancel the timer. The return function gets called by the apollo server
   // when a subscription is cancelled.
-  return {
-    ...iterator,
-    return: () => {
-      log.info(`Disconnecting subscription ${topic}`);
-      clearInterval(poll);
-      clearTimeout(kill);
-      return iterator.return();
-    }
+  iterator.return = () => {
+    log.info(`Disconnecting subscription ${topic}`);
+    clearInterval(poll);
+    clearTimeout(kill);
+    return Promise.resolve({ value: undefined, done: true });
   };
+
+  iterator.throw = error => {
+    return Promise.reject(error);
+  };
+
+  // Return the AsyncIterator
+  return iterator;
 }

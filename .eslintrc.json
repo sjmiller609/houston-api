@@ -34,7 +34,7 @@
     "no-debugger": 1,
     "no-var": 1,
     "no-alert": 0,
-    "no-console": 0,
+    "no-console": 1,
     "import/no-named-as-default-member": 0,
     "import/extensions": 1,
     "import/no-unresolved": [2, { "caseSensitive": false }],

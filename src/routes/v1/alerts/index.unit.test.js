@@ -32,6 +32,7 @@ describe("POST /alerts", () => {
             labels: {
               alertname: casual.word,
               component: casual.word,
+              workspace: casual.word,
               deployment: casual.word,
               instance: casual.domain,
               job: casual.word,
@@ -49,6 +50,7 @@ describe("POST /alerts", () => {
             labels: {
               alertname: casual.word,
               component: casual.word,
+              workspace: casual.word,
               deployment: casual.word,
               instance: casual.domain,
               job: casual.word,

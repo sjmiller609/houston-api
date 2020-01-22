@@ -19,8 +19,15 @@ import { createServer } from "http";
 
 // Get configuration from config dir and environment.
 const serverConfig = config.get("webserver");
+const corsConfig = config.get("cors");
 const helmConfig = config.get("helm");
 const prismaConfig = config.get("prisma");
+
+// Enable global proxy support for got, axios, and request libs. set
+// GLOBAL_AGENT_HTTPS_PROXY, GLOBAL_AGENT_HTTP_PROXY, or GLOBAL_AGENT_NO_PROXY
+// environment variables to control. It does not look at HTTP_PROXY or
+// http_proxy etc variables.
+import "global-agent/bootstrap";
 
 // Create express server.
 const app = express();
@@ -78,7 +85,9 @@ server.applyMiddleware({
   path: serverConfig.endpoint,
   cors: {
     origin: [
+      ...corsConfig.allowedOrigins,
       "http://app.local.astronomer.io:5000",
+      "http://app.local.astronomer.io:8080",
       new RegExp(":\\/\\/localhost[:\\d+]?"),
       new RegExp(`.${helmConfig.baseDomain}$`)
     ],
@@ -106,8 +115,6 @@ httpServer.listen({ port: serverConfig.port }, () => {
     `Server ready at http://localhost:${serverConfig.port}${server.graphqlPath}`
   );
   log.info(
-    `Subscriptions ready at ws://localhost:${serverConfig.port}${
-      server.subscriptionsPath
-    }`
+    `Subscriptions ready at ws://localhost:${serverConfig.port}${server.subscriptionsPath}`
   );
 });

@@ -23,7 +23,6 @@ const mutation = `
       id
       label
       description
-      active
     }
   }
 `;

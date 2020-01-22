@@ -22,7 +22,7 @@ export default async function users(parent, args, ctx, info) {
  * @param {Object} ctx The graphql context.
  * @return {Object} The users query.
  */
-export function usersQuery(args, ctx) {
+export function usersQuery(args) {
   // Pull out some args.
   const { userUuid: id, username, email: address } = args;
 
@@ -30,11 +30,14 @@ export function usersQuery(args, ctx) {
   if (id) return { where: { id } };
 
   // If we have workspaceUuid, user it.
-  if (username) return { where: { username } };
+  if (username) return { where: { username_contains: username } };
 
   // If we have an email use it.
-  if (address) return { where: { emails_some: { address } } };
+  if (address) {
+    return {
+      where: { emails_some: { address: address.toLowerCase() } }
+    };
+  }
 
-  // Otherwise just return a query for the current user.
-  return { where: { id: ctx.user.id } };
+  return null;
 }

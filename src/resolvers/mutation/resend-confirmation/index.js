@@ -13,7 +13,7 @@ import shortid from "shortid";
 export default async function resendConfirmation(parent, args, ctx) {
   // Check for user by incoming email arg.
   const email = await ctx.db.query.email(
-    { where: { address: args.email } },
+    { where: { address: args.email.toLowerCase() } },
     `{
       id
       address

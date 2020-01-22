@@ -1,4 +1,5 @@
 import post from "./post";
+import { catchAsyncError } from "errors";
 import express from "express";
 
 const router = new express.Router();
@@ -12,6 +13,6 @@ router.use(
 );
 
 // Setup the POST route.
-router.post("/", post);
+router.post("/", catchAsyncError(post));
 
 export default router;

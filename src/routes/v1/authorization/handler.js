@@ -2,6 +2,7 @@ import { hasPermission } from "rbac";
 import { prisma } from "generated/client";
 import log from "logger";
 import { createJWT } from "jwt";
+import config from "config";
 import { ENTITY_DEPLOYMENT } from "constants";
 import url from "url";
 
@@ -21,7 +22,7 @@ export default async function(req, res) {
 
   // If we're accessing a monitoring service and we have permission, allow it.
   const monitoringSubdomain = /^(grafana|kibana)$/.test(subdomain);
-  if (monitoringSubdomain && hasPermission(user, "system.monitoring.view")) {
+  if (monitoringSubdomain && hasPermission(user, "system.monitoring.get")) {
     log.info(`Authorizing request to ${originalUrl}`);
     return res.sendStatus(200);
   }
@@ -43,6 +44,8 @@ export default async function(req, res) {
       res.set("Authorization", "Bearer " + jwt);
       return res.sendStatus(200);
     }
+    log.info(`Denying request to ${originalUrl}`);
+    return res.sendStatus(403);
   }
 
   // If we made it this far, deny the request.
@@ -51,25 +54,54 @@ export default async function(req, res) {
 }
 
 export function airflowJWT(user, roles, hostname) {
+  let email, name;
+  if (user.username) {
+    email = user.username.toLowerCase();
+    name = user.fullName;
+  } else if (user.label) {
+    // A ServiceAccount
+    //
+    const baseDomain = config.get("helm.baseDomain");
+    email = `${user.id}@service-accounts.${baseDomain}`;
+    name = `Service Account: ${user.label}`;
+  } else {
+    throw new Error(
+      "airflowJWT given something other than User or ServiceAccount"
+    );
+  }
   const token = createJWT({
     // Make sure that we can't use tokens from one deployment against
     // another somehow.
     aud: hostname,
     sub: user.id,
     roles: roles,
-    email: user.username,
-    full_name: user.fullName
+    email: email,
+    full_name: name
   });
   return token;
 }
 
 export function mapLocalRolesToAirflow(user, deploymentId) {
   const entityType = ENTITY_DEPLOYMENT.toLowerCase();
-  if (hasPermission(user, "deployment.airflow.op", entityType, deploymentId))
+  if (
+    hasPermission(user, "deployment.airflow.admin", entityType, deploymentId) ||
+    hasPermission(user, "system.airflow.admin")
+  )
+    return ["Admin"];
+  if (
+    hasPermission(user, "deployment.airflow.op", entityType, deploymentId) ||
+    hasPermission(user, "system.airflow.op")
+  )
     return ["Op"];
-  if (hasPermission(user, "deployment.airflow.user", entityType, deploymentId))
+  if (
+    hasPermission(user, "deployment.airflow.user", entityType, deploymentId) ||
+    hasPermission(user, "system.airflow.user")
+  )
     return ["User"];
-  if (hasPermission(user, "deployment.airflow.view", entityType, deploymentId))
+  if (
+    hasPermission(user, "deployment.airflow.get", entityType, deploymentId) ||
+    hasPermission(user, "system.airflow.get")
+  )
     return ["Viewer"];
 
   return [];

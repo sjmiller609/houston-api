@@ -8,9 +8,13 @@ describe("When valid resources are passed", () => {
     };
 
     const max = { cpu: "4000m", memory: "15360m" };
+    const defaultAU = 10;
+    const properties = { extra_au: 20 };
 
     // Just ensure we don't throw an error here
-    expect(validateResources(resources, max)).toBe(undefined);
+    expect(validateResources(resources, max, defaultAU, properties)).toBe(
+      undefined
+    );
   });
 });
 
@@ -22,9 +26,11 @@ describe("When invalid resources are passed", () => {
     };
 
     const max = { cpu: "4000m", memory: "15360m" };
+    const defaultAU = 10;
+    const properties = { extra_au: 0 };
 
     expect(() => {
-      validateResources(resources, max);
+      validateResources(resources, max, defaultAU, properties);
     }).toThrow();
   });
 });
@@ -37,8 +43,12 @@ describe("When undefined resources are passed", () => {
     };
 
     const max = { cpu: "4000m", memory: "15360m" };
+    const defaultAU = 10;
+    const properties = { extra_au: 0 };
 
     // Just ensure we don't throw an error here
-    expect(validateResources(resources, max)).toBe(undefined);
+    expect(validateResources(resources, max, defaultAU, properties)).toBe(
+      undefined
+    );
   });
 });

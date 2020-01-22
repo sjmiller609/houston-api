@@ -17,7 +17,7 @@ export default async function validateExistence(
   // Query for deployments using label and workspaceId
   const deployments = await prisma
     .deployments({
-      where: { label, workspace: { id: workspaceId } }
+      where: { label, workspace: { id: workspaceId }, deletedAt: null }
     })
     .id();
 

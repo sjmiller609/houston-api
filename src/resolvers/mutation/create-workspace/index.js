@@ -1,5 +1,7 @@
 import fragment from "./fragment";
 import { addFragmentToInfo } from "graphql-binding";
+import config from "config";
+import moment from "moment";
 import { WORKSPACE_ADMIN } from "constants";
 
 /*
@@ -10,10 +12,14 @@ import { WORKSPACE_ADMIN } from "constants";
  * @return {AuthToken} The workspace.
  */
 export default async function createWorkspace(parent, args, ctx, info) {
+  const trialDuration = config.get("trial.length");
+  const trialEndsAt = moment()
+    .add(trialDuration, "d")
+    .format();
+
   return ctx.db.mutation.createWorkspace(
     {
       data: {
-        active: true,
         label: args.label,
         description: args.description,
         roleBindings: {
@@ -25,7 +31,9 @@ export default async function createWorkspace(parent, args, ctx, info) {
               }
             }
           }
-        }
+        },
+        isSuspended: false,
+        trialEndsAt
       }
     },
     addFragmentToInfo(info, fragment)

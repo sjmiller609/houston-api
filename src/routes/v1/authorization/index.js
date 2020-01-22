@@ -1,4 +1,5 @@
 import handler from "./handler";
+import { catchAsyncError } from "errors";
 import express from "express";
 
 const router = new express.Router();
@@ -11,7 +12,7 @@ router.use(
 );
 
 // Houston 1 currently defines both methods.
-router.post("/", handler);
-router.get("/", handler);
+router.post("/", catchAsyncError(handler));
+router.get("/", catchAsyncError(handler));
 
 export default router;

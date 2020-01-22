@@ -1,0 +1,14 @@
+[
+  {
+    "metric":{
+      "deployment": "frozen-neutron-5201",
+      "instance": "frozen-neutron-5201-statsd.datarouter-frozen-neutron-5201.svc:9102",
+      "job": "airflow",
+      "type": "counter"
+    },
+    "value":[
+      1562779535,
+      "1"
+    ]
+  }
+]

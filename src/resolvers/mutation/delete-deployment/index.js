@@ -11,10 +11,11 @@ import config from "config";
  * @return {Deployment} The deleted Deployment.
  */
 export default async function deleteDeployment(parent, args, ctx, info) {
-  // Delete the record from the database.
-  const deployment = await ctx.db.mutation.deleteDeployment(
+  // Soft delete the record from the database.
+  const deployment = await ctx.db.mutation.updateDeployment(
     {
-      where: { id: args.deploymentUuid }
+      where: { id: args.deploymentUuid },
+      data: { deletedAt: new Date() }
     },
     addFragmentToInfo(info, fragment)
   );

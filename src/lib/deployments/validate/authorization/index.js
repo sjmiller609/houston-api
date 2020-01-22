@@ -20,7 +20,7 @@ export default async function validateDeploymentCredentials(
   // Return false is releaseName doesn't look right
   if (releaseName.split("-").length !== 3) return false;
 
-  // Get the elasticsearchPassword for this deployment
+  // Get the password for this deployment
   const truePassword = await prisma
     .deployment({ releaseName })
     [passwordField]();

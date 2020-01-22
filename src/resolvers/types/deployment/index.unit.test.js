@@ -1,11 +1,11 @@
-import { urls, env, properties } from "./index";
+import { urls, env, properties, deployInfo } from "./index";
 import { generateReleaseName } from "deployments/naming";
-import { AIRFLOW_EXECUTOR_CELERY } from "constants";
+import { AIRFLOW_EXECUTOR_DEFAULT } from "constants";
 
 describe("Deployoment", () => {
   test("urls returns correct urls", () => {
     const releaseName = generateReleaseName();
-    const config = { executor: AIRFLOW_EXECUTOR_CELERY };
+    const config = { executor: AIRFLOW_EXECUTOR_DEFAULT };
     const parent = { config, releaseName };
     const theUrls = urls(parent);
 
@@ -39,5 +39,55 @@ describe("Deployoment", () => {
     const parent = { extraAu: 50 };
     const ret = await properties(parent);
     expect(ret).toHaveProperty("extra_au", 50);
+  });
+
+  test("deployInfo return an latest and next tags based on dockerImages", async () => {
+    const parent = { id: "testId" };
+    const db = {
+      query: {
+        dockerImages: jest
+          .fn()
+          .mockReturnValue([{ tag: "deploy-1" }, { tag: "deploy-2" }]),
+        deployment: jest.fn()
+      }
+    };
+    const { latest, nextCli } = await deployInfo(parent, {}, { db });
+    expect(latest).toEqual("deploy-2");
+    expect(nextCli).toEqual("deploy-3");
+    expect(db.query.dockerImages.mock.calls).toHaveLength(2);
+    expect(db.query.deployment.mock.calls).toHaveLength(0);
+  });
+
+  test("deployInfo return current and latest and next tags based on dockerImages", async () => {
+    const parent = { id: "testId" };
+    const db = {
+      query: {
+        dockerImages: jest
+          .fn()
+          .mockReturnValue([{ tag: "teamcity-r4ws4" }, { tag: "deploy-1" }]),
+        deployment: jest.fn()
+      }
+    };
+    const { latest, nextCli, current } = await deployInfo(parent, {}, { db });
+    expect(latest).toEqual("deploy-1");
+    expect(nextCli).toEqual("deploy-2");
+    expect(current).toEqual("teamcity-r4ws4");
+    expect(db.query.dockerImages.mock.calls).toHaveLength(2);
+    expect(db.query.deployment.mock.calls).toHaveLength(0);
+  });
+
+  test("deployInfo return an latest and next tags based on default value", async () => {
+    const parent = { id: "testId" };
+    const db = {
+      query: {
+        dockerImages: jest.fn().mockReturnValue([]),
+        deployment: jest.fn().mockReturnValue({})
+      }
+    };
+    const { latest, nextCli } = await deployInfo(parent, {}, { db });
+    expect(latest).toBeUndefined();
+    expect(nextCli).toEqual("deploy-1");
+    expect(db.query.dockerImages.mock.calls).toHaveLength(2);
+    expect(db.query.deployment.mock.calls).toHaveLength(0);
   });
 });

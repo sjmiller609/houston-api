@@ -43,21 +43,24 @@ export function generateMockLogRecords(release, component) {
 
 /*
  * Return an elasticsearch search query for the given args.
- * @param {String} something Something.
+ * @param {String} release An airflow release name.
+ * @param {String} component An airflow deployment component name (scheduler|webserver|worker).
+ * @param {String} gt Timestamp results should be greater than.
+ * @param {String} searchPhrase A phrase to search the log records for.
  * @return {Object} An elasticsearch query.
  */
 export function createLogQuery(release, component, gt, searchPhrase) {
   const query = {
     index: `fluentd.${release}.*`,
-    sort: "@timestamp:asc",
+    sort: "@timestamp:desc",
     // This matches a value in orbit.
     // It's equal to the maximum records orbit will keep in its cache.
-    size: 300,
+    size: 800,
     body: {
       query: {
         bool: {
           // Always match against the deployment release name.
-          must: [{ match: { release: release } }],
+          must: [{ match: { release } }],
           // Filter out the end_of_log messages the airflow task logs use.
           must_not: [{ match: { message: "end_of_log" } }]
         }

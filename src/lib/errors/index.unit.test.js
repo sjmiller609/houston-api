@@ -4,8 +4,8 @@ import casual from "casual";
 describe("hasError", () => {
   test("returns true for matched error", () => {
     const message = casual.text;
-    const e = { result: { errors: [{ message }] } };
-    const result = hasError(e, message);
+    const e = { result: { errors: [{ code: 500, message }] } };
+    const result = hasError(e, 500, message);
     expect(result).toBe(true);
   });
 

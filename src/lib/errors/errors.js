@@ -8,7 +8,7 @@ import {
 export class PublicSignupsDisabledError extends Error {
   message =
     this.message ||
-    "Public signups are disabled, a valid inviteToken is required";
+    "Public sign ups are disabled, a valid inviteToken is required to login to the platform. Public sign ups can be enabled via configuration change.";
 }
 
 export class InviteTokenNotFoundError extends UserInputError {
@@ -27,8 +27,11 @@ export class InviteTokenEmailError extends ApolloError {
   }
 }
 
-export class ResourceNotFoundError extends Error {
-  message = this.message || "The requested resource was not found";
+export class ResourceNotFoundError extends ApolloError {
+  name = "ResourceNotFoundError";
+  constructor() {
+    super("The requested resource was not found", "RESOURCE_NOT_FOUND");
+  }
 }
 
 export class CredentialsNotFoundError extends AuthenticationError {
@@ -61,6 +64,24 @@ export class EmailNotConfirmedError extends ApolloError {
   }
 }
 
+export class WorkspaceSuspendedError extends Error {
+  message =
+    this.message ||
+    "Workspace is suspended. This is likely an issue with payment.";
+}
+
+export class WorkspaceDeleteError extends Error {
+  message =
+    this.message ||
+    "You must first deprovision all deployments before you can delete your workspace.";
+}
+
+export class TrialError extends Error {
+  message =
+    this.message ||
+    "Workspace is in trial mode. Please add a valid payment method to your workspace to unlock all features.";
+}
+
 export class DuplicateDeploymentLabelError extends UserInputError {
   constructor(deploymentName) {
     super(`Workspace already has a deployment named ${deploymentName}`);
@@ -78,8 +99,11 @@ export class MissingArgumentError extends UserInputError {
   }
 }
 
-export class UserInviteExistsError extends UserInputError {
-  message = this.message || "User already invited to workspace";
+export class UserInviteExistsError extends ApolloError {
+  name = "UserInviteExistsError";
+  constructor() {
+    super("User already invited", "USER_ALREADY_INVITED");
+  }
 }
 
 export class JWTValidationError extends AuthenticationError {
@@ -106,6 +130,15 @@ export class DuplicateRoleBindingError extends UserInputError {
   message = this.message || "A duplicate role binding already exists";
 }
 
-export class DuplicateEmailError extends Error {
-  message = this.message || "Email already in use";
+export class DuplicateEmailError extends ApolloError {
+  name = "DuplicateEmailError";
+  constructor() {
+    super("Email address in use", "DUPLICATE_EMAIL");
+  }
+}
+
+export class NoSystemAdminError extends ApolloError {
+  message =
+    this.message ||
+    "There are no other system administrators. Please assign another before removing yourself.";
 }

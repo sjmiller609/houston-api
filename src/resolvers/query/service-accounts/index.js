@@ -1,12 +1,13 @@
 import fragment from "./fragment";
+import { hasPermission } from "rbac";
 import { PermissionError, MissingArgumentError } from "errors";
 import { compact, includes } from "lodash";
 import { addFragmentToInfo } from "graphql-binding";
 
 /*
  * Get a list of service accounts.
- * This resolver has some abnormal behavior since it has to do
- * some extra checks that could not be handled by our auth directive.
+ * XXX: Available for backwards compatibility - please use the scoped
+ * mutations and queries moving forward.
  * @param {Object} parent The result of the parent resolver.
  * @param {Object} args The graphql arguments.
  * @param {Object} ctx The graphql context.
@@ -33,11 +34,19 @@ export default async function serviceAccounts(parent, args, ctx, info) {
   // Build query structure.
   const query = { where: { AND: [] } };
 
-  // If we have service account id, add to filter, along with
-  // a roleBinding filter to the ones the user has access to.
+  // Check if we have system-level access.
+  const hasSystemPerm = hasPermission(ctx.user, "system.serviceAccounts.get");
+
+  // If we have service account id, add to filter.
   if (serviceAccountUuid) {
     query.where.AND.push({
-      id: serviceAccountUuid,
+      id: serviceAccountUuid
+    });
+  }
+
+  // If we do not have system-level access, limit query to only ids user can access.
+  if (!hasSystemPerm) {
+    query.where.AND.push({
       roleBinding: {
         [entityType]: { id_in: ids }
       }
@@ -45,7 +54,7 @@ export default async function serviceAccounts(parent, args, ctx, info) {
   }
 
   // Throw an error if the entityUuid is not in the list of ids.
-  if (entityUuid && !includes(ids, entityUuid)) {
+  if (!hasSystemPerm && entityUuid && !includes(ids, entityUuid)) {
     throw new PermissionError();
   }
 

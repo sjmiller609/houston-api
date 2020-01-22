@@ -1,4 +1,4 @@
-import { getSigningCert } from "jwt";
+import { getRegistryCertificate } from "jwt";
 import { generateKid } from "registry/libtrust";
 import jwt from "jsonwebtoken";
 import config from "config";
@@ -11,7 +11,7 @@ import crypto from "crypto";
  * @return {Promise<String>} The token.
  */
 export function createDockerJWT(sub, access, expiration = 3600) {
-  const { crt, key } = getSigningCert();
+  const { crt, key } = getRegistryCertificate();
   const { issuer: iss, service: aud } = config.get("jwt.registry");
   const now = Math.floor(Date.now() / 1000);
   const exp = now + expiration;

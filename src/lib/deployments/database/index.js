@@ -46,6 +46,8 @@ export async function createDatabaseForDeployment(deployment) {
     numbers: true
   });
 
+  log.info(`Creating database ${dbName}`);
+
   // Create the new deployment database.
   await createDatabase(rootConn, dbName);
 
@@ -78,6 +80,8 @@ export async function createDatabaseForDeployment(deployment) {
   // Kill connection to the deployments db.
   deploymentDb.destroy();
 
+  log.info(`Created database ${dbName}`);
+
   // Construct connection details for airflow schema.
   const metadataConnection = {
     user: airflowUserName,
@@ -98,6 +102,43 @@ export async function createDatabaseForDeployment(deployment) {
 
   // Return both urls.
   return { metadataConnection, resultBackendConnection };
+}
+
+/*
+ * Drop databases from createDatabaseForDeployment.
+ * @param {Object} config An object containing configuration
+ */
+export async function removeDatabaseForDeployment(deployment) {
+  const { enabled, connection } = config.get("deployments.database");
+  // Exit early if we have database creation disabled.
+  if (!enabled) {
+    log.info("Deployment database creation disabled, skipping");
+    return {};
+  }
+
+  // Parse the connection into a standard format.
+  const parsedConn = parseConnection(connection);
+
+  // Create connection as root user.
+  const rootConn = createConnection(parsedConn);
+
+  const dbName = generateDatabaseName(deployment.releaseName);
+  log.info(`Dropping database ${dbName}`);
+
+  // In case of database doesn't exists
+  try {
+    await rootConn.raw(`REVOKE CONNECT ON DATABASE ${dbName} FROM public;`);
+    await rootConn.raw(
+      `SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = '${dbName}';`
+    );
+    await rootConn.raw(`DROP DATABASE ${dbName};`);
+    log.info(`Dropped database ${dbName}`);
+  } catch (e) {
+    log.error(e);
+  } finally {
+    // To prevent hanging, we should explicitly destroy connection
+    await rootConn.destroy();
+  }
 }
 
 /*

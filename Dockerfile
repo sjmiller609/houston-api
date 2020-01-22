@@ -1,43 +1,50 @@
 #
-# Houston API
-# Source of truth for the Astronomer Platform
+# Copyright 2019 Astronomer Inc.
+#
+# Licensed under the Apache License, Version 3.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-FROM alpine:3.8
-MAINTAINER Astronomer <humans@astronomer.io>
+FROM astronomerinc/ap-base:0.10.3
+LABEL maintainer="Astronomer <humans@astronomer.io>"
 
 ARG BUILD_NUMBER=-1
 LABEL io.astronomer.docker.build.number=$BUILD_NUMBER
 LABEL io.astronomer.docker.module="astronomer"
-LABEL io.astronomer.docker.component="houston"
-LABEL io.astronomer.docker.environment="development"
+LABEL io.astronomer.docker.component="houston-api"
 
-# Set and switch to installation directory.
 WORKDIR /houston
 
-# Add packages.json first so we can prevent rebuilds for code changes.
-COPY package.json package.json
+# Copy in the package.json to install dependencies
+COPY package*.json ./
 
-# Install packages / dependencies.
-RUN apk update \
-	&& apk add --no-cache --virtual .build-deps \
+# Install dependencies
+RUN apk add --no-cache --virtual .build-deps \
 		build-base \
-		python \
 		git \
+		python \
 	&& apk add --no-cache \
-		bash \
-		netcat-openbsd \
 		nodejs \
 		nodejs-npm \
 		openssl \
 	&& npm install \
 	&& apk del .build-deps
 
-# Copy in source code.
+# Copy in the source and build the application
 COPY . .
+RUN npm run build
 
-# Expose port and run default start command.
 EXPOSE 8871
 
 # Wrap with entrypoint
 ENTRYPOINT ["/houston/bin/entrypoint"]
-CMD ["npm", "run", "start"]
+
+CMD ["npm", "run", "serve"]

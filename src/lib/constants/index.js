@@ -11,6 +11,9 @@ export const AIRFLOW_EXECUTOR_LOCAL = "LocalExecutor";
 export const AIRFLOW_EXECUTOR_CELERY = "CeleryExecutor";
 export const AIRFLOW_EXECUTOR_KUBERNETES = "KubernetesExecutor";
 
+// Set the default executor
+export const AIRFLOW_EXECUTOR_DEFAULT = AIRFLOW_EXECUTOR_CELERY;
+
 export const AIRFLOW_COMPONENT_SCHEDULER = "scheduler";
 export const AIRFLOW_COMPONENT_WEBSERVER = "webserver";
 export const AIRFLOW_COMPONENT_STATSD = "statsd";
@@ -41,7 +44,8 @@ export const DEPLOYMENT_VIEWER = "DEPLOYMENT_VIEWER";
 export const ENTITY_WORKSPACE = "WORKSPACE";
 export const ENTITY_DEPLOYMENT = "DEPLOYMENT";
 
-export const DEFAULT_NEXT_IMAGE_TAG = "cli-1";
-
 export const DOCKER_REGISTRY_CONTENT_TYPE =
   "application/vnd.docker.distribution.events.v1+json";
+
+export const MEDIATYPE_DOCKER_MANIFEST_V2 =
+  "application/vnd.docker.distribution.manifest.v2+json";

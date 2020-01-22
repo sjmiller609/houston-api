@@ -21,7 +21,6 @@ const mutation = `
       payload: $payload,
     ) {
       id
-      active
       description
       label
     }

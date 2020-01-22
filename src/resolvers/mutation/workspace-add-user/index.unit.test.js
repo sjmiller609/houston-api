@@ -94,7 +94,7 @@ describe("workspaceAddUser", () => {
       // Orbit expects this to match to show the right message
       expect.stringMatching(/already invited/i)
     );
-    expect(res.errors[0].extensions.code).toBe("BAD_USER_INPUT");
+    expect(res.errors[0].extensions.code).toBe("USER_ALREADY_INVITED");
     expect(email).toHaveBeenCalled();
     expect(createRoleBinding).not.toHaveBeenCalled();
     expect(inviteTokensConnection).toHaveBeenCalled();

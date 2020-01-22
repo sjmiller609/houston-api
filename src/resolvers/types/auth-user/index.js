@@ -1,4 +1,5 @@
 import fragment from "./fragment";
+import { hasPermission } from "rbac";
 import { createAuthJWT, setJWTCookie } from "jwt";
 import { addFragmentToInfo } from "graphql-binding";
 import { USER_STATUS_ACTIVE } from "constants";
@@ -43,5 +44,28 @@ export function isAdmin() {
   return false;
 }
 
+/*
+ * Return boolean flags indicating what the current user has access to
+ * on a particular deployment.
+ * @param {Object} parent The result of the parent resolver.
+ * @param {Object} args The graphql arguments.
+ * @param {Object} ctx The graphql context.
+ * @return {AuthUserCapabilities} Map of boolean capabilities.
+ */
+export function authUserCapabilities(parent, args, ctx) {
+  const permissions = [
+    {
+      key: "canSysAdmin",
+      value: "system.airflow.admin"
+    }
+  ];
+  const capabilities = [];
+  permissions.map(p => {
+    capabilities[p.key] = hasPermission(ctx.user, p.value);
+  });
+
+  return capabilities;
+}
+
 // Export AuthUser.
-export default { user, token, permissions, isAdmin };
+export default { user, token, permissions, isAdmin, authUserCapabilities };

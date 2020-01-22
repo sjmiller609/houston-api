@@ -48,7 +48,7 @@ describe("confirmEmail", () => {
   });
 
   describe("when token is valid", () => {
-    describe("and the user is already active", async () => {
+    describe("and the user is already active", () => {
       test("should verify the email", async () => {
         const emailRecord = {
           token,

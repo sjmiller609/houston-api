@@ -3,6 +3,8 @@ import log from "logger";
 import {
   curry,
   find,
+  filter,
+  first,
   fromPairs,
   get,
   isNumber,
@@ -12,20 +14,22 @@ import {
   maxBy,
   merge,
   set,
-  split
+  split,
+  uniq
 } from "lodash";
 import config from "config";
 import yaml from "yamljs";
+import semver from "semver";
 import {
   DEPLOYMENT_PROPERTY_EXTRA_AU,
   DEPLOYMENT_PROPERTY_ALERT_EMAILS,
   DEPLOYMENT_PROPERTY_COMPONENT_VERSION,
   AIRFLOW_EXECUTOR_LOCAL,
-  AIRFLOW_EXECUTOR_CELERY,
+  AIRFLOW_EXECUTOR_KUBERNETES,
+  AIRFLOW_EXECUTOR_DEFAULT,
   AIRFLOW_COMPONENT_SCHEDULER,
   AIRFLOW_COMPONENT_WORKERS,
-  AIRFLOW_COMPONENT_PGBOUNCER,
-  DEFAULT_NEXT_IMAGE_TAG
+  AIRFLOW_COMPONENT_PGBOUNCER
 } from "constants";
 
 /*
@@ -46,8 +50,9 @@ export function generateHelmValues(deployment, values = {}) {
     limitRange(), // Apply the limit range.
     constraints(deployment), // Apply any constraints (quotas, pgbouncer, etc).
     registry(deployment), // Apply the registry connection details.
-    elasticsearch(deployment), // Apply the elasticsearch connection details
-    // platform(deployment), // Apply astronomer platform specific values.
+    elasticsearch(deployment), // Apply the elasticsearch connection details.
+    defaultAirflowTag(deployment), // Apply the default airflow tag we want to deploy.
+    platform(deployment), // Apply astronomer platform specific values.
     deploymentOverrides(deployment) // The deployment level config.
   );
 
@@ -96,8 +101,7 @@ export function limitRange() {
   const containerLimit = {
     type: "Container",
     default: min,
-    defaultRequest: min,
-    min
+    defaultRequest: min
   };
 
   return { limits: [podLimit, containerLimit] };
@@ -117,11 +121,16 @@ export function constraints(deployment) {
   }
 
   // Get some config settings.
-  const { astroUnit, components, executors } = config.get("deployments");
+  const {
+    astroUnit,
+    components,
+    executors,
+    sidecars: staticSidecarUnit
+  } = config.get("deployments");
   const elasticsearchEnabled = config.get("elasticsearch.enabled");
 
   // Get the executor on this deployment.
-  const executor = get(deployment, "config.executor", AIRFLOW_EXECUTOR_CELERY);
+  const executor = get(deployment, "config.executor", AIRFLOW_EXECUTOR_DEFAULT);
 
   // Get the configuration for that executor.
   const executorConfig = find(executors, ["name", executor]);
@@ -156,7 +165,19 @@ export function constraints(deployment) {
 
   const sidecars = executorConfig.components.reduce(
     (acc, cur) => {
+      // How many replicas of this component.
       const replicas = get(deployment, `${cur}.replicas`, 1);
+
+      // Get default sidecar resources to add, and just go ahead and
+      // add it to the accumulator.
+      const defaultSidecarResources = auToResources(
+        staticSidecarUnit,
+        replicas,
+        false
+      );
+      acc.cpu += defaultSidecarResources.cpu;
+      acc.memory += defaultSidecarResources.memory;
+
       if (
         executor === AIRFLOW_EXECUTOR_LOCAL &&
         cur === AIRFLOW_COMPONENT_SCHEDULER
@@ -186,12 +207,11 @@ export function constraints(deployment) {
     { cpu: parseInt(astroUnit.cpu) * 1, memory: parseInt(astroUnit.memory) * 1 }
   );
 
-  // Check for any extra Au on deployment.
-  const extraProp = find(deployment.properties, [
-    "key",
-    DEPLOYMENT_PROPERTY_EXTRA_AU
-  ]);
-  const extraAu = extraProp ? extraProp.value : 0;
+  // Grab extra au.
+  const extraAu =
+    !deployment.extraAu && executor === AIRFLOW_EXECUTOR_KUBERNETES
+      ? executorConfig.defaultExtraAu
+      : deployment.extraAu || 0;
 
   // Calculate total extra capacity.
   const extra = {
@@ -228,9 +248,6 @@ export function constraints(deployment) {
     "pgbouncer.maxClientConn",
     Math.floor(astroUnit.airflowConns * totalAu)
   );
-
-  // If we have extraAu, enable pod launching (KubeExecutor, KubePodOperator, etc).
-  if (extraAu > 0) set(res, "allowPodLaunching", true);
 
   // Return the final object.
   return res;
@@ -273,9 +290,6 @@ export function registry(deployment) {
 
 /*
  * Return connection information for the elasticsearch connection.
- * Each deployment has a unique password that is auto-generated and
- * lives in a kubernetes secret. This function maps those values into
- * the helm configuration.
  * @param {Object} deployment A deployment object.
  * @return {Object} The elasticsearch settings.
  */
@@ -303,14 +317,37 @@ export function elasticsearch(deployment) {
  * @param {Object} deployment A deployment object.
  * @return {Object} Helm values.
  */
-// export function platform(deployment) {
-//   return {
-//     platform: {
-//       release: deployment.releaseName,
-//       workspace: deployment.workspace.id
-//     }
-//   };
-// }
+export function platform(deployment) {
+  const { releaseName: platformReleaseName } = config.get("helm");
+
+  // Labels to apply to all objects created.
+  const labels = {
+    platform: platformReleaseName,
+    workspace: deployment.workspace.id
+  };
+
+  // Pre-0.11.0 format.
+  const platform = {
+    release: platformReleaseName,
+    workspace: deployment.workspace.id
+  };
+
+  // Merge both in.
+  return { labels, platform };
+}
+
+/* Return the default airflow tag to push to deployments.
+ * @param {Object} deployment A deployment object.
+ * @return {Object} Helm values.
+ */
+export function defaultAirflowTag({ airflowVersion }) {
+  const versionedTag = (airflowImageForVersion(airflowVersion) || {}).tag;
+  const defaultAirflowTag = versionedTag
+    ? versionedTag
+    : defaultAirflowImage().tag;
+
+  return { defaultAirflowTag };
+}
 
 /*
  * HOF to help create mergeable resources
@@ -320,11 +357,14 @@ export function elasticsearch(deployment) {
  * @return {Object} Resources for single component.
  */
 export function mapResources(au, auType, includeUnits, comp) {
-  const requests = auToResources(au, comp.au[auType], includeUnits);
+  const limits = auToResources(au, comp.au[auType], includeUnits);
+  const requests = comp.au.request
+    ? auToResources(au, comp.au.request, includeUnits)
+    : limits;
 
   const resources = {
     requests,
-    limits: requests
+    limits
   };
 
   const extras = comp.extra
@@ -347,10 +387,12 @@ export function mapResources(au, auType, includeUnits, comp) {
  * @return {Object} The resources object.
  */
 export function auToResources(au, size, includeUnits = true) {
+  const cpu = Math.ceil(au.cpu * size);
+  const memory = Math.ceil(au.memory * size);
   if (includeUnits) {
-    return { cpu: `${au.cpu * size}m`, memory: `${au.memory * size}Mi` };
+    return { cpu: `${cpu}m`, memory: `${memory}Mi` };
   }
-  return { cpu: au.cpu * size, memory: au.memory * size };
+  return { cpu, memory };
 }
 
 /*
@@ -358,7 +400,7 @@ export function auToResources(au, size, includeUnits = true) {
  * @param {[]Object} An array of objects with key/value pairs.
  * @return {Object} The object with key/value pairs.
  */
-export function envArrayToObject(arr = []) {
+export function arrayOfKeyValueToObject(arr = []) {
   return fromPairs(arr.map(i => [i.key, i.value]));
 }
 
@@ -367,7 +409,7 @@ export function envArrayToObject(arr = []) {
  * @param {Object} An array of objects with key/value pairs.
  * @return {[]Object} The object with key/value pairs.
  */
-export function envObjectToArray(obj = {}) {
+export function objectToArrayOfKeyValue(obj = {}) {
   return map(obj, (value, key) => ({ key, value }));
 }
 
@@ -378,15 +420,13 @@ export function envObjectToArray(obj = {}) {
  * @return {[]Object} The object with key/value pairs.
  */
 export function mapPropertiesToDeployment(obj = {}) {
-  const mapped = {};
+  const mapped = {
+    extraAu: get(obj, DEPLOYMENT_PROPERTY_EXTRA_AU, 0)
+  };
 
-  if (obj[DEPLOYMENT_PROPERTY_EXTRA_AU]) {
-    mapped.extraAu = obj[DEPLOYMENT_PROPERTY_EXTRA_AU];
-  }
-
-  if (obj[DEPLOYMENT_PROPERTY_COMPONENT_VERSION]) {
-    mapped.airflowVersion = obj[DEPLOYMENT_PROPERTY_COMPONENT_VERSION];
-  }
+  // Only set this if we have a value.
+  const airflowVersion = get(obj, DEPLOYMENT_PROPERTY_COMPONENT_VERSION);
+  if (airflowVersion) mapped.airflowVersion = airflowVersion;
 
   if (obj[DEPLOYMENT_PROPERTY_ALERT_EMAILS]) {
     mapped.alertEmails = {
@@ -425,7 +465,8 @@ export function mapDeploymentToProperties(dep = {}) {
  * Find the most recent tag in a list of image tags.
  */
 export function findLatestTag(tags = []) {
-  const filtered = tags.filter(t => t.startsWith("cli-"));
+  const prefix = config.get("deployments.tagPrefix");
+  const filtered = tags.filter(t => t.startsWith(`${prefix}-`));
   return maxBy(filtered, t => parseInt(last(split(t, "-"))));
 }
 
@@ -433,9 +474,18 @@ export function findLatestTag(tags = []) {
  * Generate the next tag name for a deployment image.
  */
 export function generateNextTag(latest) {
-  if (!latest) return DEFAULT_NEXT_IMAGE_TAG;
+  if (!latest) return generateDefaultTag();
+  const prefix = config.get("deployments.tagPrefix");
   const num = parseInt(last(split(latest, "-")));
-  return `cli-${num + 1}`;
+  return `${prefix}-${num + 1}`;
+}
+
+/*
+ * Generate the default tag for an airflow deployment.
+ */
+export function generateDefaultTag() {
+  const prefix = config.get("deployments.tagPrefix");
+  return `${prefix}-1`;
 }
 
 /*
@@ -444,7 +494,7 @@ export function generateNextTag(latest) {
  * @return {Object} The default config.
  */
 export function generateDefaultDeploymentConfig() {
-  return { executor: AIRFLOW_EXECUTOR_CELERY };
+  return { executor: AIRFLOW_EXECUTOR_DEFAULT };
 }
 
 /*
@@ -511,4 +561,52 @@ export function mapCustomEnvironmentVariables(deployment, envs = []) {
   });
 
   return { secret: secrets };
+}
+
+/*
+ * Generate the default airflow image tag.
+ * @reuturn {String} Airflow image tag.
+ */
+export function airflowImageTag(version, distro) {
+  return `${version}-${distro}`;
+}
+
+/*
+ * Get list of supported Airflow images.
+ * @reuturn {[String]} List of airflow images.
+ */
+export function airflowImages() {
+  return config
+    .get("deployments.images")
+    .slice(0)
+    .sort((a, b) => semver.rcompare(a.version, b.version));
+}
+
+/*
+ * Get list of supported Airflow versions.
+ * @reuturn {[Object]} List of Airflow versions.
+ */
+export function airflowVersions() {
+  return uniq(map(airflowImages(), "version"));
+}
+
+/*
+ * Get default Airflow image.
+ * @reuturn {String} Default Airflow image.
+ */
+export function defaultAirflowImage() {
+  return first(filter(airflowImages(), i => i.channel === "stable"));
+}
+
+/*
+ * Get Airflow image for specified version.
+ * @reuturn {String} Default Airflow image.
+ */
+export function airflowImageForVersion(version) {
+  return first(
+    filter(
+      airflowImages(),
+      i => i.channel === "stable" && i.version === version
+    )
+  );
 }

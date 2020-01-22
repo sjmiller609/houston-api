@@ -44,7 +44,7 @@ const mailer = new Emailer({
  */
 export function sendEmail(recipient, template, locals) {
   const message = {
-    from: reply,
+    from: `"Astronomer" <${reply}>`,
     to: recipient
   };
 

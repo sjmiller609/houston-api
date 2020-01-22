@@ -24,31 +24,31 @@ pipeline:
     when:
       event: push
 
-  push:
-    image: astronomerio/ap-build:0.1.1
-    commands:
-      - docker login -u $${DOCKER_USERNAME} -p $${DOCKER_PASSWORD}
-      - docker push astronomerinc/ap-houston-api:dev
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    secrets: [ docker_username, docker_password ]
-    when:
-      event: push
-      branch: [ master ]
+  # push:
+  #   image: astronomerio/ap-build:0.1.1
+  #   commands:
+  #     - docker login -u $${DOCKER_USERNAME} -p $${DOCKER_PASSWORD}
+  #     - docker push astronomerinc/ap-houston-api:dev
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   secrets: [ docker_username, docker_password ]
+  #   when:
+  #     event: push
+  #     branch: [ master ]
 
-  trigger:
-    image: plugins/downstream
-    server: http://drone.astronomer.io
-    fork: true
-    secrets: [ downstream_token ]
-    repositories:
-      - astronomer/astronomer
-    when:
-      branch: [ master ]
+  # trigger:
+  #   image: plugins/downstream
+  #   server: https://drone.astronomer.io
+  #   fork: true
+  #   secrets: [ downstream_token ]
+  #   repositories:
+  #     - astronomer/astronomer
+  #   when:
+  #     branch: [ master ]
 
   notify:
     image: plugins/slack
     secrets: [ slack_webhook ]
     channel: platform
     when:
-      status: [ failure ]
+      status: [ failure, changed ]

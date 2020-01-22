@@ -20,6 +20,8 @@ describe("createPoller", () => {
 
     // Fast-forward, expect we've polled appropriately.
     jest.advanceTimersByTime(10000);
-    expect(func).toHaveBeenCalledTimes(10);
+
+    // +1 for initial call.
+    expect(func).toHaveBeenCalledTimes(11);
   });
 });

@@ -1,7 +1,9 @@
 import {
+  airflowImageForVersion,
+  airflowImageTag,
   mapResources,
-  envObjectToArray,
-  envArrayToObject,
+  objectToArrayOfKeyValue,
+  arrayOfKeyValueToObject,
   generateHelmValues,
   limitRange,
   constraints,
@@ -9,8 +11,10 @@ import {
   mapDeploymentToProperties,
   findLatestTag,
   generateNextTag,
+  generateDefaultTag,
   deploymentOverrides,
-  mapCustomEnvironmentVariables
+  mapCustomEnvironmentVariables,
+  platform
 } from "./index";
 import { generateReleaseName } from "deployments/naming";
 import casual from "casual";
@@ -19,15 +23,17 @@ import {
   AIRFLOW_EXECUTOR_LOCAL,
   DEPLOYMENT_PROPERTY_EXTRA_AU,
   DEPLOYMENT_PROPERTY_COMPONENT_VERSION,
-  DEPLOYMENT_PROPERTY_ALERT_EMAILS,
-  DEFAULT_NEXT_IMAGE_TAG
+  DEPLOYMENT_PROPERTY_ALERT_EMAILS
 } from "constants";
 
 describe("generateHelmValues", () => {
   test("generates correct shape with default/missing deployment config", () => {
     const deployment = {
       id: casual.uuid,
-      releaseName: generateReleaseName()
+      releaseName: generateReleaseName(),
+      workspace: {
+        id: casual.uuid
+      }
     };
     const config = generateHelmValues(deployment);
     expect(config).toHaveProperty("ingress");
@@ -65,14 +71,14 @@ describe("constraints", () => {
     };
     const config = constraints(deployment);
     expect(config.quotas.pods).toBe(14); // Default celery (7 pods), doubled.
-    expect(config.quotas["requests.cpu"]).toBe("5600m"); // 2500 doubled + 300 sidecar doubled
-    expect(config.quotas["requests.memory"]).toBe("21504Mi"); // 9600 doubled + 768 sidecar doubled
+    expect(config.quotas["requests.cpu"]).toBe("6200m"); // 2500 doubled + 300 sidecar doubled
+    expect(config.quotas["requests.memory"]).toBe("23808Mi"); // 9600 doubled + 768 sidecar doubled
     expect(config.quotas["requests.cpu"]).toBe(config.quotas["requests.cpu"]);
     expect(config.quotas["requests.memory"]).toBe(
       config.quotas["requests.memory"]
     );
-    expect(config.pgbouncer.metadataPoolSize).toBe(12);
-    expect(config.pgbouncer.maxClientConn).toBe(125);
+    expect(config.pgbouncer.metadataPoolSize).toBe(14);
+    expect(config.pgbouncer.maxClientConn).toBe(140);
     expect(config).not.toHaveProperty("allowPodLaunching");
   });
 
@@ -90,19 +96,18 @@ describe("constraints", () => {
   test("correctly applies constraints for extra au property", () => {
     const deployment = {
       id: casual.uuid,
-      properties: [{ key: DEPLOYMENT_PROPERTY_EXTRA_AU, value: 10 }]
+      extraAu: 10
     };
     const config = constraints(deployment);
     expect(config.quotas.pods).toBe(24); // Same as default celery + 10 extra
-    expect(config.quotas["requests.cpu"]).toBe("6600m"); // Same as default celery + 1000 extra
-    expect(config.quotas["requests.memory"]).toBe("25344Mi"); // Same as default celery + 3840 extra
+    expect(config.quotas["requests.cpu"]).toBe("7200m"); // Same as default celery + 1000 extra
+    expect(config.quotas["requests.memory"]).toBe("27648Mi"); // Same as default celery + 3840 extra
     expect(config.quotas["requests.cpu"]).toBe(config.quotas["requests.cpu"]);
     expect(config.quotas["requests.memory"]).toBe(
       config.quotas["requests.memory"]
     );
-    expect(config.pgbouncer.metadataPoolSize).toBe(17); // Same as celery default + 5 (.5 * 10)
-    expect(config.pgbouncer.maxClientConn).toBe(175); // Same as celery default + 50 (5 * 10)
-    expect(config.allowPodLaunching).toBeTruthy();
+    expect(config.pgbouncer.metadataPoolSize).toBe(19); // Same as celery default + 5 (.5 * 10)
+    expect(config.pgbouncer.maxClientConn).toBe(190); // Same as celery default + 50 (5 * 10)
   });
 
   test("correctly applies constraints for LocalExecutor config", () => {
@@ -112,14 +117,14 @@ describe("constraints", () => {
     };
     const config = constraints(deployment);
     expect(config.quotas.pods).toBe(8); // Local (4 pods), doubled.
-    expect(config.quotas["requests.cpu"]).toBe("2800m"); // 1100 doubled + 300 sidecar doubled
-    expect(config.quotas["requests.memory"]).toBe("10752Mi"); // 4224 doubled + 1152 sidecar doubled
+    expect(config.quotas["requests.cpu"]).toBe("3400m"); // 1100 doubled + 300 sidecar doubled
+    expect(config.quotas["requests.memory"]).toBe("13056Mi"); // 4224 doubled + 1152 sidecar doubled
     expect(config.quotas["requests.cpu"]).toBe(config.quotas["requests.cpu"]);
     expect(config.quotas["requests.memory"]).toBe(
       config.quotas["requests.memory"]
     );
-    expect(config.pgbouncer.metadataPoolSize).toBe(5);
-    expect(config.pgbouncer.maxClientConn).toBe(55);
+    expect(config.pgbouncer.metadataPoolSize).toBe(7);
+    expect(config.pgbouncer.maxClientConn).toBe(70);
     expect(config).not.toHaveProperty("allowPodLaunching");
   });
 });
@@ -176,9 +181,33 @@ describe("mapResources", () => {
     expect(res).toHaveProperty("webserver.replicas");
     expect(res.webserver.replicas).toBe(1);
   });
+
+  test("mapResources correctly maps requests if specified", () => {
+    const au = {
+      cpu: 100,
+      memory: 384
+    };
+
+    const auType = "default";
+
+    const comp = {
+      name: "webserver",
+      au: {
+        default: 5,
+        limit: 10,
+        request: 0.1
+      }
+    };
+
+    const res = mapResources(au, auType, true, comp);
+    expect(res.webserver.resources.requests.cpu).toBe("10m");
+    expect(res.webserver.resources.requests.memory).toBe("39Mi");
+    expect(res.webserver.resources.limits.cpu).toBe("500m");
+    expect(res.webserver.resources.limits.memory).toBe("1920Mi");
+  });
 });
 
-describe("envArrayToObject", () => {
+describe("arrayOfKeyValueToObject", () => {
   test("correctly transforms array to object", () => {
     // Create a test array.
     const arr = [
@@ -187,7 +216,7 @@ describe("envArrayToObject", () => {
     ];
 
     // Run the transformation.
-    const obj = envArrayToObject(arr);
+    const obj = arrayOfKeyValueToObject(arr);
 
     // Test for object keys and values.
     expect(obj).toHaveProperty("AIRFLOW_HOME", "/tmp");
@@ -196,7 +225,7 @@ describe("envArrayToObject", () => {
 
   test("correctly handles an undefined environment list", () => {
     // Run the transformation.
-    const obj = envArrayToObject();
+    const obj = arrayOfKeyValueToObject();
     expect(obj).toEqual({});
   });
 });
@@ -210,7 +239,7 @@ describe("envObjectToArary", () => {
     };
 
     // Run the transformation.
-    const arr = envObjectToArray(obj);
+    const arr = objectToArrayOfKeyValue(obj);
 
     expect(arr.length).toBe(2);
     expect(arr[0]).toHaveProperty("key", "AIRFLOW_HOME");
@@ -221,7 +250,7 @@ describe("envObjectToArary", () => {
 
   test("correctly handles an undefined environment list", () => {
     // Run the transformation.
-    const arr = envObjectToArray();
+    const arr = objectToArrayOfKeyValue();
     expect(arr).toEqual([]);
   });
 });
@@ -249,6 +278,24 @@ describe("mapPropertiesToDeployment", () => {
     expect(renamed.alertEmails.set).toHaveLength(1);
     expect(renamed.alertEmails.set[0]).toEqual(email);
   });
+
+  test("correctly handles empty values", () => {
+    // Create a test object.
+    const obj = {
+      [DEPLOYMENT_PROPERTY_EXTRA_AU]: 0,
+      [DEPLOYMENT_PROPERTY_COMPONENT_VERSION]: "",
+      [DEPLOYMENT_PROPERTY_ALERT_EMAILS]: []
+    };
+
+    // Run the transformation.
+    const renamed = mapPropertiesToDeployment(obj);
+
+    expect(renamed.extraAu).toEqual(obj[DEPLOYMENT_PROPERTY_EXTRA_AU]);
+    expect(renamed.airflowVersion).toBeUndefined();
+
+    expect(renamed.alertEmails).toHaveProperty("set");
+    expect(renamed.alertEmails.set).toHaveLength(0);
+  });
 });
 
 describe("mapDeploymentToProperties", () => {
@@ -273,29 +320,29 @@ describe("mapDeploymentToProperties", () => {
 
 describe("findLatestTag", () => {
   test("correctly determines the latest tag from list", () => {
-    const tags = ["cli-1", "cli-3", "cli-2", "somethingelse"];
+    const tags = ["deploy-1", "deploy-3", "deploy-2", "somethingelse"];
     const latest = findLatestTag(tags);
-    expect(latest).toBe("cli-3");
+    expect(latest).toBe("deploy-3");
   });
 
   test("correctly sorts tags", () => {
-    const tags = ["cli-1", "cli-3", "cli-2", "cli-10", "cli-9"];
+    const tags = ["deploy-1", "deploy-3", "deploy-2", "deploy-10", "deploy-9"];
     const latest = findLatestTag(tags);
-    expect(latest).toBe("cli-10");
+    expect(latest).toBe("deploy-10");
   });
 });
 
 describe("generateNextTag", () => {
   test("correctly generates the next tag", () => {
-    const latest = "cli-3";
+    const latest = "deploy-3";
     const next = generateNextTag(latest);
-    expect(next).toBe("cli-4");
+    expect(next).toBe("deploy-4");
   });
 
   test("returns default value if latest is empty", () => {
     const latest = undefined;
     const next = generateNextTag(latest);
-    expect(next).toBe(DEFAULT_NEXT_IMAGE_TAG);
+    expect(next).toBe(generateDefaultTag());
   });
 });
 
@@ -350,5 +397,52 @@ describe("mapCustomEnvironmentVariables", () => {
       expect.stringContaining(deployment.releaseName)
     );
     expect(env.secret[0]).toHaveProperty("secretKey", envs[0].key);
+  });
+});
+
+describe("platform", () => {
+  const deployment = {
+    releaseName: casual.word,
+    workspace: { id: casual.uuid }
+  };
+  const { releaseName: platformReleaseName } = config.get("helm");
+  test("returns labels for v0.11.0 and above", () => {
+    const platformConfig = platform(deployment);
+    expect(platformConfig).toHaveProperty(
+      "labels.platform",
+      platformReleaseName
+    );
+    expect(platformConfig).toHaveProperty(
+      "labels.workspace",
+      deployment.workspace.id
+    );
+  });
+  test("returns platform for less than v0.11.0", () => {
+    const platformConfig = platform(deployment);
+    expect(platformConfig).toHaveProperty(
+      "platform.release",
+      platformReleaseName
+    );
+    expect(platformConfig).toHaveProperty(
+      "platform.workspace",
+      deployment.workspace.id
+    );
+  });
+});
+
+describe("airflowImageTag", () => {
+  test("returns labels for v0.11.0 and above", () => {
+    const version = "0.10.3";
+    const distro = "buster";
+    const tag = airflowImageTag(version, distro);
+    expect(tag).toBe("0.10.3-buster");
+  });
+});
+
+describe("airflowImageForVersion", () => {
+  test("returns correct image", () => {
+    const version = "1.10.5";
+    const image = airflowImageForVersion(version);
+    expect(image.tag).toBe("1.10.5-alpine3.10-onbuild");
   });
 });

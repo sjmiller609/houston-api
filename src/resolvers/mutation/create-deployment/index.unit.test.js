@@ -1,4 +1,4 @@
-import { DuplicateDeploymentLabelError } from "errors";
+import { DuplicateDeploymentLabelError, TrialError } from "errors";
 import resolvers from "resolvers";
 import * as validate from "deployments/validate";
 import casual from "casual";
@@ -7,7 +7,7 @@ import { graphql } from "graphql";
 import { makeExecutableSchema } from "graphql-tools";
 import { importSchema } from "graphql-import";
 import {
-  AIRFLOW_EXECUTOR_CELERY,
+  AIRFLOW_EXECUTOR_DEFAULT,
   DEPLOYMENT_AIRFLOW,
   DEPLOYMENT_PROPERTY_COMPONENT_VERSION,
   DEPLOYMENT_PROPERTY_EXTRA_AU
@@ -65,11 +65,12 @@ const mutation = `
 `;
 
 describe("createDeployment", () => {
-  describe("typical request", async () => {
+  describe("typical request", () => {
     let user,
       deploymentId,
       createDeployment,
       createRoleBinding,
+      workspace,
       commander,
       vars,
       db;
@@ -87,14 +88,16 @@ describe("createDeployment", () => {
 
       // Mock up some db functions.
       createDeployment = jest.fn(req => {
-        console.log("req.data.releaseName", req.data.releaseName);
         return {
           id: deploymentId,
           // Use the releaseName from the request
           releaseName: req.data.releaseName,
-          config: { executor: AIRFLOW_EXECUTOR_CELERY },
+          config: { executor: AIRFLOW_EXECUTOR_DEFAULT },
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          workspace: {
+            id: casual.uuid
+          }
         };
       });
 
@@ -102,9 +105,12 @@ describe("createDeployment", () => {
         id: casual.uuid
       });
 
+      workspace = jest.fn().mockReturnValue({ stripeCustomerId: casual.uuid });
+
       // Construct db object for context.
       db = {
-        mutation: { createDeployment, createRoleBinding }
+        mutation: { createDeployment, createRoleBinding },
+        query: { workspace }
       };
 
       // Create mock commander client.
@@ -119,7 +125,7 @@ describe("createDeployment", () => {
         label: casual.word,
         properties: {
           [DEPLOYMENT_PROPERTY_EXTRA_AU]: casual.integer(0, 300),
-          [DEPLOYMENT_PROPERTY_COMPONENT_VERSION]: "7.0"
+          [DEPLOYMENT_PROPERTY_COMPONENT_VERSION]: "0.0.0"
         }
       };
     });
@@ -181,6 +187,9 @@ describe("createDeployment", () => {
 
   test("request fails if deployment with same label exists", async () => {
     const createDeployment = jest.fn();
+    const workspace = jest
+      .fn()
+      .mockReturnValue({ stripeCustomerId: casual.uuid });
 
     // Set up our spy.
     jest
@@ -189,7 +198,8 @@ describe("createDeployment", () => {
 
     // Construct db object for context.
     const db = {
-      mutation: { createDeployment }
+      mutation: { createDeployment },
+      query: { workspace }
     };
 
     // Vars for the gql mutation.
@@ -205,6 +215,37 @@ describe("createDeployment", () => {
     expect(res.errors.length).toBe(1);
     expect(res.errors[0].message).toEqual(
       expect.stringMatching(/^Workspace already has a deployment named/)
+    );
+    expect(createDeployment).toHaveBeenCalledTimes(0);
+  });
+  test("request fails if payment info has not been submitted", async () => {
+    const createDeployment = jest.fn();
+    const workspace = jest.fn().mockReturnValue({ stripeCustomerId: null });
+
+    // Set up our spy.
+    jest
+      .spyOn(validate, "default")
+      .mockImplementation(() => throw new TrialError());
+
+    // Construct db object for context.
+    const db = {
+      mutation: { createDeployment },
+      query: { workspace }
+    };
+
+    // Vars for the gql mutation.
+    const vars = {
+      workspaceUuid: casual.uuid,
+      type: DEPLOYMENT_AIRFLOW,
+      label: casual.word
+    };
+
+    // Run the graphql mutation.
+    const res = await graphql(schema, mutation, null, { db }, vars);
+
+    expect(res.errors.length).toBe(1);
+    expect(res.errors[0].message).toEqual(
+      expect.stringMatching(/^Workspace is in trial mode/)
     );
     expect(createDeployment).toHaveBeenCalledTimes(0);
   });

@@ -1,4 +1,9 @@
-import { defaultResources } from "deployments/config";
+import {
+  defaultResources,
+  airflowVersions,
+  airflowImages,
+  defaultAirflowImage
+} from "deployments/config";
 import config from "config";
 import { keyBy } from "lodash";
 
@@ -37,14 +42,24 @@ export default async function deploymentConfig() {
   const { enabled, mockInDevelopment } = config.get("elasticsearch");
   const loggingEnabled = isDev && mockInDevelopment ? true : enabled;
 
+  // Latest airflow image tag.
+  const defaultAirflowImageTag = defaultAirflowImage().tag;
+
+  // Latest Airflow chart version.
+  const defaultAirflowChartVersion = config.get("deployments.chart.version");
+
   return {
     defaults,
     limits,
     astroUnit,
     maxExtraAu,
     executors,
-    latestVersion,
     singleNamespace,
-    loggingEnabled
+    loggingEnabled,
+    latestVersion,
+    airflowImages,
+    airflowVersions,
+    defaultAirflowImageTag,
+    defaultAirflowChartVersion
   };
 }

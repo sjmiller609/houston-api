@@ -21,7 +21,10 @@ const list = [
 ];
 
 export default function validateEnvironment(envs) {
-  const i = intersection(list, map(envs, v => v.key.toUpperCase()));
+  const i = intersection(
+    list,
+    map(envs, v => v.key.toUpperCase())
+  );
   if (i.length > 0) {
     const s = [i.slice(0, -1).join(", "), i.slice(-1)[0]].join(
       i.length < 2 ? "" : " and "
